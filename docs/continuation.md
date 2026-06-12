@@ -10,6 +10,7 @@
 - Собрано единое ТЗ в `docs/technical_specification.md`.
 - Финализированы `docs/02_requirements.md`, `docs/03_architecture.md` и `docs/04_database.md`.
 - Зафиксирован подход к разработке, демо и релизам в `docs/10_development_release.md`.
+- Описаны бизнес-процессы системы в `docs/11_business_processes.md`.
 
 ## Как Продолжать
 
