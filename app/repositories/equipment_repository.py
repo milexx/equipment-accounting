@@ -1,0 +1,69 @@
+from dataclasses import dataclass
+
+from sqlalchemy import Select, func, select
+from sqlalchemy.orm import Session, joinedload
+
+from app.models.equipment import Equipment
+from app.models.enums import EquipmentCondition, EquipmentDisposition, EquipmentStatus
+
+
+@dataclass(frozen=True)
+class EquipmentFilters:
+    status: EquipmentStatus | None = None
+    condition: EquipmentCondition | None = None
+    disposition: EquipmentDisposition | None = None
+    query: str | None = None
+    page: int = 1
+    page_size: int = 50
+
+
+@dataclass(frozen=True)
+class EquipmentListResult:
+    items: list[Equipment]
+    total: int
+    page: int
+    page_size: int
+
+
+class EquipmentRepository:
+    def __init__(self, db: Session) -> None:
+        self.db = db
+
+    def list(self, filters: EquipmentFilters) -> EquipmentListResult:
+        stmt = self._base_query(filters)
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+
+        page = max(filters.page, 1)
+        page_size = min(max(filters.page_size, 1), 500)
+        offset = (page - 1) * page_size
+
+        items_stmt = (
+            stmt.options(joinedload(Equipment.region), joinedload(Equipment.equipment_type))
+            .order_by(Equipment.updated_at.desc(), Equipment.id.desc())
+            .limit(page_size)
+            .offset(offset)
+        )
+
+        total = self.db.scalar(count_stmt) or 0
+        items = list(self.db.scalars(items_stmt).unique())
+        return EquipmentListResult(items=items, total=total, page=page, page_size=page_size)
+
+    def _base_query(self, filters: EquipmentFilters) -> Select[tuple[Equipment]]:
+        stmt = select(Equipment).where(Equipment.deleted_at.is_(None))
+
+        if filters.status:
+            stmt = stmt.where(Equipment.status == filters.status)
+        if filters.condition:
+            stmt = stmt.where(Equipment.condition == filters.condition)
+        if filters.disposition:
+            stmt = stmt.where(Equipment.disposition == filters.disposition)
+        if filters.query:
+            like = f"%{filters.query.strip()}%"
+            stmt = stmt.where(
+                Equipment.title.ilike(like)
+                | Equipment.inventory_number.ilike(like)
+                | Equipment.serial_number.ilike(like)
+            )
+
+        return stmt
+

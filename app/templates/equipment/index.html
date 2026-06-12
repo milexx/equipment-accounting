@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Реестр оборудования</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Учёт оборудования</div>
+    <nav>
+      <a href="/">Главная</a>
+      <a href="/equipment" class="active">Реестр</a>
+      <a href="/prototype">Прототип</a>
+    </nav>
+  </header>
+
+  <main class="workbench">
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h1>Реестр оборудования</h1>
+          <p>Рабочий экран центра: проверка, списание, оценка и продажа.</p>
+        </div>
+        <div class="head-actions">
+          <button type="button">Колонки</button>
+          <button type="button">Массовые действия</button>
+          <button type="button" class="primary">Экспорт XLSX</button>
+        </div>
+      </div>
+
+      <form class="filters" method="get" action="/equipment">
+        <label>
+          Поиск
+          <input name="q" value="{{ q }}" placeholder="Название, инвентарный или серийный номер">
+        </label>
+        <label>
+          Статус
+          <select name="status">
+            <option value="">Все статусы</option>
+            {% for item in statuses %}
+              <option value="{{ item.value }}" {% if status == item.value %}selected{% endif %}>
+                {{ status_labels[item.value] }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Состояние
+          <select name="condition">
+            <option value="">Все состояния</option>
+            {% for item in conditions %}
+              <option value="{{ item.value }}" {% if condition == item.value %}selected{% endif %}>
+                {{ condition_labels[item.value] }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Маршрут
+          <select name="disposition">
+            <option value="">Все маршруты</option>
+            {% for item in dispositions %}
+              <option value="{{ item.value }}" {% if disposition == item.value %}selected{% endif %}>
+                {{ disposition_labels[item.value] }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+        <button type="submit" class="primary">Применить</button>
+      </form>
+
+      <div class="view-tabs">
+        <a href="/equipment?status=submitted">Новые на проверку</a>
+        <a href="/equipment?condition=broken">Нерабочее</a>
+        <a href="/equipment?disposition=writeoff">К списанию</a>
+        <a href="/equipment?disposition=valuation">На оценку</a>
+        <a href="/equipment?disposition=sale">Продажа</a>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Статус</th>
+              <th>Состояние</th>
+              <th>Маршрут</th>
+              <th>Регион</th>
+              <th>Тип</th>
+              <th>Наименование</th>
+              <th>Инв. номер</th>
+              <th>Серийный</th>
+              <th>Оценка</th>
+              <th>Цена</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in result.items %}
+              <tr>
+                <td>{{ item.id }}</td>
+                <td>
+                  <span class="status-badge status-{{ item.status.value }}">
+                    {{ status_labels[item.status.value] }}
+                  </span>
+                </td>
+                <td>{{ condition_labels[item.condition.value] }}</td>
+                <td>{{ disposition_labels[item.disposition.value] }}</td>
+                <td>{{ item.region.name }}</td>
+                <td>{{ item.equipment_type.name }}</td>
+                <td>
+                  <strong>{{ item.title }}</strong>
+                  {% if item.defect_description %}
+                    <div class="muted">{{ item.defect_description }}</div>
+                  {% elif item.sale_description %}
+                    <div class="muted">{{ item.sale_description }}</div>
+                  {% endif %}
+                </td>
+                <td>{{ item.inventory_number or "-" }}</td>
+                <td>{{ item.serial_number or "-" }}</td>
+                <td>{{ item.valuation_amount or "-" }}</td>
+                <td>{{ item.sale_price or "-" }}</td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="11" class="empty">Нет записей по выбранным фильтрам.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-footer">
+        <span>Всего: {{ result.total }}</span>
+        <span>Страница {{ result.page }}</span>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
+
