@@ -99,7 +99,7 @@
           <tbody>
             {% for item in result.items %}
               <tr>
-                <td>{{ item.id }}</td>
+                <td><a class="table-link" href="/equipment/{{ item.id }}">{{ item.id }}</a></td>
                 <td>
                   <span class="status-badge status-{{ item.status.value }}">
                     {{ status_labels[item.status.value] }}
@@ -110,7 +110,7 @@
                 <td>{{ item.region.name }}</td>
                 <td>{{ item.equipment_type.name }}</td>
                 <td>
-                  <strong>{{ item.title }}</strong>
+                  <a class="table-link strong" href="/equipment/{{ item.id }}">{{ item.title }}</a>
                   {% if item.defect_description %}
                     <div class="muted">{{ item.defect_description }}</div>
                   {% elif item.sale_description %}
@@ -139,4 +139,3 @@
   </main>
 </body>
 </html>
-

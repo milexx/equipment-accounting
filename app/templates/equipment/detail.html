@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ item.title }}</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Учёт оборудования</div>
+    <nav>
+      <a href="/">Главная</a>
+      <a href="/equipment" class="active">Реестр</a>
+      <a href="/prototype">Прототип</a>
+    </nav>
+  </header>
+
+  <main class="workbench">
+    <section class="detail-layout">
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="breadcrumbs"><a href="/equipment">Реестр</a> / #{{ item.id }}</div>
+            <h1>{{ item.title }}</h1>
+            <p>{{ item.region.name }} · {{ item.equipment_type.name }}</p>
+          </div>
+          <div class="head-actions">
+            <button type="button">Вернуть</button>
+            <button type="button">На диагностику</button>
+            {% if item.condition.value == "broken" %}
+              <button type="button">На списание</button>
+            {% else %}
+              <button type="button">На оценку</button>
+              <button type="button" class="primary">К продаже</button>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="detail-content">
+          <section class="info-section">
+            <h2>Статус и маршрут</h2>
+            <div class="kv-grid">
+              <div>
+                <span>Статус</span>
+                <strong>
+                  <span class="status-badge status-{{ item.status.value }}">
+                    {{ status_labels[item.status.value] }}
+                  </span>
+                </strong>
+              </div>
+              <div>
+                <span>Состояние</span>
+                <strong>{{ condition_labels[item.condition.value] }}</strong>
+              </div>
+              <div>
+                <span>Маршрут</span>
+                <strong>{{ disposition_labels[item.disposition.value] }}</strong>
+              </div>
+              <div>
+                <span>Статус продажи</span>
+                <strong>{{ sale_status_labels[item.sale_status.value] }}</strong>
+              </div>
+            </div>
+          </section>
+
+          <section class="info-section">
+            <h2>Основные данные</h2>
+            <div class="kv-grid">
+              <div><span>Инвентарный номер</span><strong>{{ item.inventory_number or "-" }}</strong></div>
+              <div><span>Серийный номер</span><strong>{{ item.serial_number or "-" }}</strong></div>
+              <div><span>Комплектность</span><strong>{{ item.completeness or "-" }}</strong></div>
+              <div><span>Создано</span><strong>{{ item.created_at.strftime("%d.%m.%Y") }}</strong></div>
+            </div>
+          </section>
+
+          {% if item.defect_description %}
+            <section class="info-section warning-section">
+              <h2>Описание поломки</h2>
+              <p>{{ item.defect_description }}</p>
+              <div class="notice">Для списания нужно минимум одно фото дефекта.</div>
+            </section>
+          {% endif %}
+
+          {% if item.valuation_amount or item.sale_price or item.sale_description %}
+            <section class="info-section sale-section">
+              <h2>Оценка и продажа</h2>
+              <div class="kv-grid">
+                <div><span>Оценочная стоимость</span><strong>{{ item.valuation_amount or "-" }}</strong></div>
+                <div><span>Цена продажи</span><strong>{{ item.sale_price or "-" }}</strong></div>
+                <div><span>Публикация</span><strong>{{ "Да" if item.is_public_listing else "Нет" }}</strong></div>
+              </div>
+              {% if item.sale_description %}
+                <p>{{ item.sale_description }}</p>
+              {% endif %}
+            </section>
+          {% endif %}
+
+          <section class="info-section">
+            <h2>Поля типа</h2>
+            {% if item.attributes %}
+              <div class="kv-grid">
+                {% for key, value in item.attributes.items() %}
+                  <div><span>{{ key }}</span><strong>{{ value }}</strong></div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <p class="muted">Нет дополнительных полей.</p>
+            {% endif %}
+          </section>
+        </div>
+      </article>
+
+      <aside class="panel side-detail">
+        <div class="detail-content">
+          <section class="info-section">
+            <h2>Фото</h2>
+            {% if item.photos %}
+              <div class="photo-list">
+                {% for photo in item.photos %}
+                  <div class="photo-card">
+                    <div class="thumb large"></div>
+                    <strong>{{ photo.purpose.value }}</strong>
+                  </div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <div class="photo-placeholder">Фото ещё не загружены</div>
+            {% endif %}
+          </section>
+
+          <section class="info-section">
+            <h2>Контроль процесса</h2>
+            <ul class="check-list">
+              <li class="{{ 'done' if item.inventory_number else '' }}">Инвентарный номер</li>
+              <li class="{{ 'done' if item.serial_number else '' }}">Серийный номер</li>
+              <li class="{{ 'done' if item.photos else '' }}">Минимум одно фото</li>
+              {% if item.condition.value == "broken" %}
+                <li class="{{ 'done' if item.defect_description else '' }}">Описание поломки</li>
+                <li>Фото дефекта</li>
+              {% else %}
+                <li class="{{ 'done' if item.valuation_amount else '' }}">Оценка</li>
+                <li class="{{ 'done' if item.sale_price else '' }}">Цена продажи</li>
+              {% endif %}
+            </ul>
+          </section>
+
+          <section class="info-section">
+            <h2>История</h2>
+            <p class="muted">Audit log будет подключён следующим этапом.</p>
+          </section>
+        </div>
+      </aside>
+    </section>
+  </main>
+</body>
+</html>

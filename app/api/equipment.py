@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -60,6 +60,30 @@ def equipment_index(
     )
 
 
+@router.get("/{equipment_id}", response_class=HTMLResponse)
+def equipment_detail(
+    equipment_id: int,
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+) -> HTMLResponse:
+    service = EquipmentService(db)
+    item = service.get_equipment(equipment_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Equipment not found")
+
+    return templates.TemplateResponse(
+        request,
+        "equipment/detail.html",
+        {
+            "item": item,
+            "status_labels": STATUS_LABELS,
+            "condition_labels": CONDITION_LABELS,
+            "disposition_labels": DISPOSITION_LABELS,
+            "sale_status_labels": SALE_STATUS_LABELS,
+        },
+    )
+
+
 STATUS_LABELS = {
     "draft": "Черновик",
     "submitted": "На проверке",
@@ -95,3 +119,12 @@ DISPOSITION_LABELS = {
     "sale": "Продажа",
 }
 
+SALE_STATUS_LABELS = {
+    "not_for_sale": "Не продаётся",
+    "valuation_pending": "Ожидает оценки",
+    "priced": "Есть цена",
+    "ready": "Готово",
+    "listed": "Опубликовано",
+    "reserved": "Зарезервировано",
+    "sold": "Продано",
+}

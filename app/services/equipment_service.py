@@ -33,3 +33,5 @@ class EquipmentService:
             )
         )
 
+    def get_equipment(self, equipment_id: int):
+        return self.repository.get(equipment_id)

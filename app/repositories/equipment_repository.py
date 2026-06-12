@@ -48,6 +48,18 @@ class EquipmentRepository:
         items = list(self.db.scalars(items_stmt).unique())
         return EquipmentListResult(items=items, total=total, page=page, page_size=page_size)
 
+    def get(self, equipment_id: int) -> Equipment | None:
+        stmt = (
+            select(Equipment)
+            .where(Equipment.id == equipment_id, Equipment.deleted_at.is_(None))
+            .options(
+                joinedload(Equipment.region),
+                joinedload(Equipment.equipment_type),
+                joinedload(Equipment.photos),
+            )
+        )
+        return self.db.scalar(stmt)
+
     def _base_query(self, filters: EquipmentFilters) -> Select[tuple[Equipment]]:
         stmt = select(Equipment).where(Equipment.deleted_at.is_(None))
 
@@ -66,4 +78,3 @@ class EquipmentRepository:
             )
 
         return stmt
-
