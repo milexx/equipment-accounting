@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Local runtime data
+data/
+var/
+storage/
+uploads/
+exports/
+logs/
+
+# Database/runtime files
+*.sqlite
+*.db
+
+# Node/frontend, if added later
+node_modules/
+dist/
+build/
+
+# IDE/system
+.idea/
+.vscode/
+.DS_Store
+

@@ -1,0 +1,637 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Equipment Accounting Interface Prototype</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --line: #d9dee7;
+      --text: #1f2933;
+      --muted: #667085;
+      --brand: #1769aa;
+      --brand-strong: #0f4f83;
+      --ok: #16835a;
+      --warn: #a65f00;
+      --bad: #b42318;
+      --soft: #eef4fb;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 14px;
+      line-height: 1.35;
+    }
+    header {
+      height: 56px;
+      background: #ffffff;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+    .brand { font-weight: 700; font-size: 18px; }
+    .user { color: var(--muted); }
+    nav {
+      display: flex;
+      gap: 8px;
+      padding: 16px 24px 0;
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+    nav a {
+      color: var(--text);
+      text-decoration: none;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 6px;
+    }
+    nav a.active {
+      background: var(--brand);
+      border-color: var(--brand);
+      color: #fff;
+    }
+    main {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 20px 24px 40px;
+    }
+    section { margin-bottom: 28px; }
+    h1 {
+      margin: 0 0 16px;
+      font-size: 24px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+    h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+    .screen {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .screen-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--line);
+    }
+    .screen-title { min-width: 0; }
+    .screen-title p {
+      margin: 4px 0 0;
+      color: var(--muted);
+    }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    button, .button {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      border-radius: 6px;
+      padding: 9px 12px;
+      font: inherit;
+      cursor: default;
+      min-height: 38px;
+    }
+    .primary {
+      background: var(--brand);
+      border-color: var(--brand);
+      color: #fff;
+      font-weight: 700;
+    }
+    .primary:hover { background: var(--brand-strong); }
+    .danger { color: var(--bad); }
+    .content { padding: 20px; }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #fff;
+    }
+    .metric strong { display: block; font-size: 24px; margin-bottom: 4px; }
+    .metric span { color: var(--muted); }
+    .form-grid {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+    .steps {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .step {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      background: #fff;
+    }
+    .step:last-child { border-bottom: 0; }
+    .step.current { background: var(--soft); font-weight: 700; }
+    .step .num {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #e8edf3;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 24px;
+      font-size: 12px;
+    }
+    .fieldset {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+    .fieldset h3 {
+      margin: 0;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcfe;
+      font-size: 15px;
+    }
+    .fields {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      padding: 14px;
+    }
+    label { display: block; font-weight: 700; margin-bottom: 6px; }
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid #cfd6e0;
+      border-radius: 6px;
+      padding: 9px 10px;
+      font: inherit;
+      min-height: 38px;
+      background: #fff;
+    }
+    textarea { min-height: 76px; resize: vertical; }
+    .help { margin-top: 5px; color: var(--muted); font-size: 12px; }
+    .full { grid-column: 1 / -1; }
+    .photo-drop {
+      border: 2px dashed #9fb4ca;
+      border-radius: 8px;
+      padding: 18px;
+      background: #f8fbff;
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+    }
+    .photo-strip {
+      display: grid;
+      grid-template-columns: repeat(5, 84px);
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .photo-slot {
+      aspect-ratio: 1;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: linear-gradient(135deg, #dbeafe, #f8fafc);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+      padding: 6px;
+    }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .submitted { color: #7a4a00; background: #fff4d6; }
+    .accepted { color: #075c3f; background: #dff7ec; }
+    .revision { color: #9b1c1c; background: #fee4e2; }
+    .draft { color: #344054; background: #eef2f6; }
+    .filters {
+      display: grid;
+      grid-template-columns: 1.4fr repeat(3, minmax(150px, 220px)) auto;
+      gap: 10px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcfe;
+      align-items: end;
+    }
+    .views {
+      display: flex;
+      gap: 8px;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--line);
+      overflow-x: auto;
+    }
+    .view-pill {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 999px;
+      padding: 7px 11px;
+      white-space: nowrap;
+    }
+    .view-pill.active {
+      background: var(--soft);
+      border-color: #9bbddc;
+      color: var(--brand-strong);
+      font-weight: 700;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+    th {
+      background: #f8fafc;
+      color: #344054;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+    tbody tr:hover { background: #f9fbfd; }
+    .thumb {
+      width: 42px;
+      height: 42px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #e0f2fe, #e7e5e4);
+      border: 1px solid var(--line);
+    }
+    .table-wrap { overflow-x: auto; }
+    .pagination {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 20px;
+      color: var(--muted);
+    }
+    .split {
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      gap: 16px;
+    }
+    .side-panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #fff;
+    }
+    .todo {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+    }
+    @media (max-width: 980px) {
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .form-grid, .split { grid-template-columns: 1fr; }
+      .filters { grid-template-columns: 1fr 1fr; }
+      .fields { grid-template-columns: 1fr; }
+      .screen-head { align-items: flex-start; flex-direction: column; }
+    }
+    @media (max-width: 620px) {
+      header { padding: 0 14px; }
+      main, nav { padding-left: 14px; padding-right: 14px; }
+      .metrics, .filters { grid-template-columns: 1fr; }
+      .photo-strip { grid-template-columns: repeat(3, 84px); }
+      th, td { padding: 9px 8px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">Учёт оборудования</div>
+    <div class="user">Регион 24 / Центр</div>
+  </header>
+
+  <nav aria-label="Прототипы экранов">
+    <a href="#region" class="active">Регион: быстрый ввод</a>
+    <a href="#center">Центр: реестр</a>
+  </nav>
+
+  <main>
+    <section id="region">
+      <div class="screen">
+        <div class="screen-head">
+          <div class="screen-title">
+            <h1>Регион 24</h1>
+            <p>Главная задача: быстро добавить оборудование и отправить на проверку.</p>
+          </div>
+          <div class="toolbar">
+            <button>Черновики</button>
+            <button class="primary">Добавить оборудование</button>
+          </div>
+        </div>
+        <div class="content">
+          <div class="metrics">
+            <div class="metric"><strong>12</strong><span>Черновики</span></div>
+            <div class="metric"><strong>37</strong><span>Отправлено</span></div>
+            <div class="metric"><strong>5</strong><span>На доработке</span></div>
+            <div class="metric"><strong>184</strong><span>Принято</span></div>
+          </div>
+
+          <div class="form-grid">
+            <div class="steps">
+              <div class="step current"><span class="num">1</span><span>Тип</span></div>
+              <div class="step"><span class="num">2</span><span>Основные сведения</span></div>
+              <div class="step"><span class="num">3</span><span>Состояние</span></div>
+              <div class="step"><span class="num">4</span><span>Поля типа</span></div>
+              <div class="step"><span class="num">5</span><span>Фото</span></div>
+              <div class="step"><span class="num">6</span><span>Проверка</span></div>
+            </div>
+
+            <div>
+              <div class="fieldset">
+                <h3>Новое оборудование</h3>
+                <div class="fields">
+                  <div>
+                    <label for="type">Тип оборудования</label>
+                    <select id="type">
+                      <option>Ноутбук</option>
+                      <option>МФУ</option>
+                      <option>Сервер</option>
+                      <option>Станок</option>
+                    </select>
+                    <div class="help">После выбора типа появятся только нужные поля.</div>
+                  </div>
+                  <div>
+                    <label for="title">Наименование</label>
+                    <input id="title" value="Ноутбук Lenovo ThinkPad">
+                  </div>
+                  <div>
+                    <label for="inv">Инвентарный номер</label>
+                    <input id="inv" placeholder="Если есть">
+                  </div>
+                  <div>
+                    <label for="serial">Серийный номер</label>
+                    <input id="serial" placeholder="Если читается">
+                  </div>
+                </div>
+              </div>
+
+              <div class="fieldset">
+                <h3>Состояние</h3>
+                <div class="fields">
+                  <div>
+                    <label for="work-state">Состояние оборудования</label>
+                    <select id="work-state">
+                      <option>Рабочее</option>
+                      <option>Нерабочее</option>
+                      <option>Нужна диагностика</option>
+                    </select>
+                    <div class="help">От этого зависит дальнейший маршрут: продажа или списание.</div>
+                  </div>
+                  <div>
+                    <label for="complete">Комплектность</label>
+                    <input id="complete" placeholder="Например: ноутбук, БП, сумка">
+                  </div>
+                  <div class="full">
+                    <label for="defect">Что сломано</label>
+                    <textarea id="defect" placeholder="Заполняется, если оборудование нерабочее. Например: разбит экран, не включается, отсутствует диск."></textarea>
+                    <div class="help">Для нерабочего оборудования нужно добавить фото, подтверждающее поломку.</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="fieldset">
+                <h3>Поля для типа "Ноутбук"</h3>
+                <div class="fields">
+                  <div>
+                    <label for="cpu">Процессор</label>
+                    <input id="cpu" placeholder="Например: Intel Core i5">
+                  </div>
+                  <div>
+                    <label for="ram">ОЗУ, ГБ</label>
+                    <input id="ram" type="number" min="0" placeholder="16">
+                  </div>
+                  <div>
+                    <label for="year">Год выпуска</label>
+                    <input id="year" type="number" min="1990" placeholder="2023">
+                  </div>
+                  <div>
+                    <label for="condition">Состояние</label>
+                    <select id="condition">
+                      <option>Рабочее</option>
+                      <option>Требует ремонта</option>
+                      <option>Неисправно</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div class="fieldset">
+                <h3>Фото</h3>
+                <div style="padding:14px">
+                  <div class="photo-drop">
+                    <div>
+                      <strong>Добавьте 1-5 фото</strong>
+                      <div class="help">Для нерабочего оборудования добавьте фото дефекта. JPEG, PNG, WebP до 10 МБ.</div>
+                    </div>
+                    <button>Выбрать фото</button>
+                  </div>
+                  <div class="photo-strip">
+                    <div class="photo-slot">Главное фото</div>
+                    <div class="photo-slot">Фото дефекта</div>
+                    <div class="photo-slot">Фото 3</div>
+                    <div class="photo-slot">Фото 4</div>
+                    <div class="photo-slot">Фото 5</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="toolbar" style="justify-content:flex-end">
+                <button>Сохранить черновик</button>
+                <button>Добавить ещё такой же тип</button>
+                <button class="primary">Отправить на проверку</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="center">
+      <div class="screen">
+        <div class="screen-head">
+          <div class="screen-title">
+            <h1>Реестр оборудования</h1>
+            <p>Рабочий экран центра для контроля большого объёма записей.</p>
+          </div>
+          <div class="toolbar">
+            <button>Колонки</button>
+            <button>Массовые действия</button>
+            <button class="primary">Экспорт XLSX</button>
+          </div>
+        </div>
+
+        <div class="filters">
+          <div>
+            <label for="search">Поиск</label>
+            <input id="search" placeholder="Инвентарный номер, серийный номер, наименование">
+          </div>
+          <div>
+            <label for="region">Регион</label>
+            <select id="region"><option>Все регионы</option><option>Регион 24</option></select>
+          </div>
+          <div>
+            <label for="center-type">Тип</label>
+            <select id="center-type"><option>Все типы</option><option>Ноутбук</option><option>Сервер</option></select>
+          </div>
+          <div>
+            <label for="status">Статус</label>
+            <select id="status"><option>На проверке</option><option>На доработке</option><option>Принято</option></select>
+          </div>
+          <button>Расширенные фильтры</button>
+        </div>
+
+        <div class="views">
+          <span class="view-pill active">Новые на проверку</span>
+          <span class="view-pill">Требуют доработки</span>
+          <span class="view-pill">Диагностика</span>
+          <span class="view-pill">К списанию</span>
+          <span class="view-pill">К утилизации</span>
+          <span class="view-pill">На оценку</span>
+          <span class="view-pill">Готово к продаже</span>
+          <span class="view-pill">Без серийного номера</span>
+          <span class="view-pill">Серверы</span>
+          <span class="view-pill">Архив</span>
+          <span class="view-pill">Сохранить вид</span>
+        </div>
+
+        <div class="split content">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th><input type="checkbox" aria-label="Выбрать все"></th>
+                  <th>Фото</th>
+                  <th>Статус</th>
+                  <th>Состояние</th>
+                  <th>Маршрут</th>
+                  <th>Регион</th>
+                  <th>Тип</th>
+                  <th>Наименование</th>
+                  <th>Инв. номер</th>
+                  <th>Серийный</th>
+                  <th>Обновлено</th>
+                  <th>Действия</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><input type="checkbox" aria-label="Выбрать запись"></td>
+                  <td><div class="thumb"></div></td>
+                  <td><span class="status submitted">На проверке</span></td>
+                  <td>Рабочее</td>
+                  <td>Оценка</td>
+                  <td>Регион 24</td>
+                  <td>Ноутбук</td>
+                  <td>Lenovo ThinkPad</td>
+                  <td>INV-24018</td>
+                  <td>PF3A91</td>
+                  <td>12.06.2026</td>
+                  <td><button>Открыть</button></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" aria-label="Выбрать запись"></td>
+                  <td><div class="thumb"></div></td>
+                  <td><span class="status revision">Доработка</span></td>
+                  <td>Нерабочее</td>
+                  <td>Списание</td>
+                  <td>Регион 08</td>
+                  <td>МФУ</td>
+                  <td>Kyocera ECOSYS</td>
+                  <td>INV-08177</td>
+                  <td>Не указан</td>
+                  <td>12.06.2026</td>
+                  <td><button>Открыть</button></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" aria-label="Выбрать запись"></td>
+                  <td><div class="thumb"></div></td>
+                  <td><span class="status accepted">Принято</span></td>
+                  <td>Рабочее</td>
+                  <td>Продажа</td>
+                  <td>Регион 31</td>
+                  <td>Сервер</td>
+                  <td>Dell PowerEdge</td>
+                  <td>INV-31004</td>
+                  <td>CN7791</td>
+                  <td>11.06.2026</td>
+                  <td><button>Открыть</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <aside class="side-panel">
+            <h2>Контроль качества</h2>
+            <ul class="todo">
+              <li>23 записи без серийного номера</li>
+              <li>8 записей без инвентарного номера</li>
+              <li>12 нерабочих записей без фото дефекта</li>
+              <li>17 рабочих записей ждут оценки</li>
+              <li>5 записей вернулись после доработки</li>
+              <li>41 запись ожидает проверки больше 3 дней</li>
+            </ul>
+            <div class="toolbar" style="margin-top:16px">
+              <button class="primary">Принять выбранные</button>
+              <button>На оценку</button>
+              <button>На списание</button>
+              <button>Вернуть</button>
+              <button class="danger">Архивировать</button>
+            </div>
+          </aside>
+        </div>
+
+        <div class="pagination">
+          <span>Показано 1-50 из 12 487</span>
+          <div class="toolbar">
+            <button>Назад</button>
+            <button>Вперёд</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
