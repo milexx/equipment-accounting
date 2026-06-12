@@ -38,3 +38,19 @@
 ## Следующий Шаг
 
 Следующий шаг - вести разработку в этом репозитории, поднимать здесь демо новых функций, а промышленный релиз выпускать из зафиксированной версии git.
+
+## Локальный Запуск
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -e '.[dev]'
+.venv/bin/alembic upgrade head
+.venv/bin/python scripts/seed_demo.py
+.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8010
+```
+
+Демо:
+
+- `http://127.0.0.1:8010/`
+- `http://127.0.0.1:8010/health`
+- `http://127.0.0.1:8010/prototype`
