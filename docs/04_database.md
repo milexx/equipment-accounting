@@ -149,6 +149,7 @@ CREATE TABLE equipment (
     title TEXT NOT NULL,
     inventory_number TEXT,
     serial_number TEXT,
+    location TEXT,
     condition equipment_condition NOT NULL DEFAULT 'unknown',
     disposition equipment_disposition NOT NULL DEFAULT 'undecided',
     sale_status equipment_sale_status NOT NULL DEFAULT 'not_for_sale',
@@ -210,6 +211,7 @@ CREATE INDEX idx_equipment_status ON equipment(status);
 CREATE INDEX idx_equipment_type_id ON equipment(equipment_type_id);
 CREATE INDEX idx_equipment_inventory_number ON equipment(inventory_number);
 CREATE INDEX idx_equipment_serial_number ON equipment(serial_number);
+CREATE INDEX idx_equipment_location ON equipment(location);
 CREATE INDEX idx_equipment_condition ON equipment(condition);
 CREATE INDEX idx_equipment_disposition ON equipment(disposition);
 CREATE INDEX idx_equipment_sale_status ON equipment(sale_status);

@@ -26,6 +26,7 @@ class Equipment(Base):
     title: Mapped[str] = mapped_column(Text, nullable=False)
     inventory_number: Mapped[str | None] = mapped_column(Text)
     serial_number: Mapped[str | None] = mapped_column(Text)
+    location: Mapped[str | None] = mapped_column(Text)
     condition: Mapped[EquipmentCondition] = mapped_column(
         Enum(EquipmentCondition, name="equipment_condition"),
         nullable=False,
@@ -62,4 +63,3 @@ class Equipment(Base):
     region = relationship("Region", back_populates="equipment_items")
     equipment_type = relationship("EquipmentType", back_populates="equipment_items")
     photos = relationship("EquipmentPhoto", back_populates="equipment")
-

@@ -156,6 +156,7 @@ def main() -> None:
             sale_status=EquipmentSaleStatus.valuation_pending,
             inventory_number="INV-24018",
             serial_number="PF3A91",
+            location="Регион 24, склад ИТ, стеллаж 2",
             completeness="Ноутбук, блок питания",
             attributes={"cpu": "Intel Core i5", "ram_gb": 16, "condition_grade": "Хорошее"},
         )
@@ -169,6 +170,7 @@ def main() -> None:
             condition=EquipmentCondition.broken,
             disposition=EquipmentDisposition.writeoff,
             inventory_number="INV-08177",
+            location="Регион 08, склад списания",
             defect_description="Не включается, повреждён корпус, отсутствует лоток подачи.",
             attributes={"page_count": 218000, "cartridge": "TK-1170"},
         )
@@ -184,6 +186,7 @@ def main() -> None:
             sale_status=EquipmentSaleStatus.ready,
             inventory_number="INV-31004",
             serial_number="CN7791",
+            location="Регион 31, серверная, стойка R2",
             valuation_amount=Decimal("185000.00"),
             sale_price=Decimal("170000.00"),
             sale_description="Рабочий сервер Dell PowerEdge R740, готов к продаже.",

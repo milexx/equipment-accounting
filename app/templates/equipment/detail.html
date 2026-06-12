@@ -69,6 +69,7 @@
             <div class="kv-grid">
               <div><span>Инвентарный номер</span><strong>{{ item.inventory_number or "-" }}</strong></div>
               <div><span>Серийный номер</span><strong>{{ item.serial_number or "-" }}</strong></div>
+              <div><span>Местонахождение</span><strong>{{ item.location or "-" }}</strong></div>
               <div><span>Комплектность</span><strong>{{ item.completeness or "-" }}</strong></div>
               <div><span>Создано</span><strong>{{ item.created_at.strftime("%d.%m.%Y") }}</strong></div>
             </div>

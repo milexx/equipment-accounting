@@ -88,6 +88,7 @@
               <th>Состояние</th>
               <th>Маршрут</th>
               <th>Регион</th>
+              <th>Местонахождение</th>
               <th>Тип</th>
               <th>Наименование</th>
               <th>Инв. номер</th>
@@ -108,6 +109,7 @@
                 <td>{{ condition_labels[item.condition.value] }}</td>
                 <td>{{ disposition_labels[item.disposition.value] }}</td>
                 <td>{{ item.region.name }}</td>
+                <td>{{ item.location or "-" }}</td>
                 <td>{{ item.equipment_type.name }}</td>
                 <td>
                   <a class="table-link strong" href="/equipment/{{ item.id }}">{{ item.title }}</a>
