@@ -1,12 +1,15 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.enums import EquipmentCondition, EquipmentDisposition, EquipmentStatus
+from app.repositories.equipment_type_repository import EquipmentTypeRepository
+from app.repositories.region_repository import RegionRepository
+from app.schemas.equipment import EquipmentCreateData
 from app.services.equipment_service import EquipmentService
 
 router = APIRouter(prefix="/equipment", tags=["equipment"])
@@ -20,6 +23,15 @@ def parse_enum(enum_cls, value: str | None):
         return enum_cls(value)
     except ValueError:
         return None
+
+
+def form_options(db: Session) -> dict:
+    return {
+        "regions": RegionRepository(db).list_active_regions(),
+        "equipment_types": EquipmentTypeRepository(db).list_active(),
+        "conditions": EquipmentCondition,
+        "condition_labels": CONDITION_LABELS,
+    }
 
 
 @router.get("", response_class=HTMLResponse)
@@ -58,6 +70,81 @@ def equipment_index(
             "disposition_labels": DISPOSITION_LABELS,
         },
     )
+
+
+@router.get("/new", response_class=HTMLResponse)
+def equipment_new(
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "equipment/new.html",
+        {
+            **form_options(db),
+            "errors": [],
+            "form": {},
+        },
+    )
+
+
+@router.post("", response_class=HTMLResponse)
+async def equipment_create(
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+    region_id: Annotated[int, Form()],
+    equipment_type_id: Annotated[int, Form()],
+    title: Annotated[str, Form()],
+    location: Annotated[str, Form()],
+    condition: Annotated[str, Form()],
+    inventory_number: Annotated[str | None, Form()] = None,
+    serial_number: Annotated[str | None, Form()] = None,
+    completeness: Annotated[str | None, Form()] = None,
+    defect_description: Annotated[str | None, Form()] = None,
+    comment: Annotated[str | None, Form()] = None,
+    action: Annotated[str, Form()] = "draft",
+) -> Response:
+    form = await request.form()
+    attributes = {
+        key.removeprefix("attr_"): value
+        for key, value in form.items()
+        if key.startswith("attr_")
+    }
+    target_status = (
+        EquipmentStatus.submitted if action == "submit" else EquipmentStatus.draft
+    )
+    parsed_condition = parse_enum(EquipmentCondition, condition) or EquipmentCondition.unknown
+
+    data = EquipmentCreateData(
+        region_id=region_id,
+        equipment_type_id=equipment_type_id,
+        title=title,
+        location=location,
+        condition=parsed_condition,
+        status=target_status,
+        inventory_number=inventory_number,
+        serial_number=serial_number,
+        completeness=completeness,
+        defect_description=defect_description,
+        comment=comment,
+        attributes=attributes,
+    )
+
+    try:
+        item = EquipmentService(db).create_equipment(data)
+    except (ValueError, TypeError) as exc:
+        return templates.TemplateResponse(
+            request,
+            "equipment/new.html",
+            {
+                **form_options(db),
+                "errors": [str(exc)],
+                "form": dict(form),
+            },
+            status_code=400,
+        )
+
+    return RedirectResponse(f"/equipment/{item.id}", status_code=303)
 
 
 @router.get("/{equipment_id}", response_class=HTMLResponse)

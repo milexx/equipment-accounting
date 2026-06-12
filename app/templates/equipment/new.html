@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Добавить оборудование</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Учёт оборудования</div>
+    <nav>
+      <a href="/">Главная</a>
+      <a href="/equipment">Реестр</a>
+      <a href="/equipment/new" class="active">Добавить</a>
+    </nav>
+  </header>
+
+  <main class="workbench">
+    <section class="detail-layout">
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="breadcrumbs"><a href="/equipment">Реестр</a> / новая запись</div>
+            <h1>Добавить оборудование</h1>
+            <p>Быстрый ввод для региона. Фото подключим следующим шагом.</p>
+          </div>
+        </div>
+
+        {% if errors %}
+          <div class="form-errors">
+            {% for error in errors %}
+              <div>{{ error }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <form class="entry-form" method="post" action="/equipment">
+          <section class="info-section">
+            <h2>1. Тип и регион</h2>
+            <div class="form-grid-fields">
+              <label>
+                Регион
+                <select name="region_id" required>
+                  {% for region in regions %}
+                    <option value="{{ region.id }}" {% if form.get("region_id") == region.id|string %}selected{% endif %}>
+                      {{ region.name }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                Тип оборудования
+                <select name="equipment_type_id" required>
+                  {% for equipment_type in equipment_types %}
+                    <option value="{{ equipment_type.id }}" {% if form.get("equipment_type_id") == equipment_type.id|string %}selected{% endif %}>
+                      {{ equipment_type.name }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </label>
+            </div>
+          </section>
+
+          <section class="info-section">
+            <h2>2. Основные сведения</h2>
+            <div class="form-grid-fields">
+              <label>
+                Наименование
+                <input name="title" value="{{ form.get('title', '') }}" required>
+              </label>
+              <label>
+                Местонахождение
+                <input name="location" value="{{ form.get('location', '') }}" placeholder="Склад, кабинет, стойка" required>
+              </label>
+              <label>
+                Инвентарный номер
+                <input name="inventory_number" value="{{ form.get('inventory_number', '') }}">
+              </label>
+              <label>
+                Серийный номер
+                <input name="serial_number" value="{{ form.get('serial_number', '') }}">
+              </label>
+              <label class="full-field">
+                Комплектность
+                <input name="completeness" value="{{ form.get('completeness', '') }}" placeholder="Например: устройство, блок питания, кабели">
+              </label>
+            </div>
+          </section>
+
+          <section class="info-section">
+            <h2>3. Состояние</h2>
+            <div class="form-grid-fields">
+              <label>
+                Состояние оборудования
+                <select name="condition" required>
+                  {% for item in conditions %}
+                    {% if item.value in ["working", "broken", "requires_diagnostics"] %}
+                      <option value="{{ item.value }}" {% if form.get("condition") == item.value %}selected{% endif %}>
+                        {{ condition_labels[item.value] }}
+                      </option>
+                    {% endif %}
+                  {% endfor %}
+                </select>
+              </label>
+              <label class="full-field">
+                Что сломано
+                <textarea name="defect_description" placeholder="Заполняется для нерабочего оборудования">{{ form.get('defect_description', '') }}</textarea>
+              </label>
+            </div>
+          </section>
+
+          <section class="info-section">
+            <h2>4. Поля типа</h2>
+            {% for equipment_type in equipment_types %}
+              <div class="type-fieldset">
+                <h3>{{ equipment_type.name }}</h3>
+                <div class="form-grid-fields">
+                  {% for field in equipment_type.fields|sort(attribute="display_order") %}
+                    {% if field.is_active %}
+                      <label>
+                        {{ field.name }}{% if field.is_required %} *{% endif %}
+                        {% if field.field_type.value == "text" %}
+                          <textarea name="attr_{{ field.code }}">{{ form.get("attr_" ~ field.code, "") }}</textarea>
+                        {% elif field.field_type.value in ["integer", "decimal"] %}
+                          <input name="attr_{{ field.code }}" type="number" value="{{ form.get('attr_' ~ field.code, '') }}">
+                        {% elif field.field_type.value == "select" %}
+                          <select name="attr_{{ field.code }}">
+                            <option value="">Не выбрано</option>
+                            {% for option in field.options %}
+                              <option value="{{ option }}" {% if form.get("attr_" ~ field.code) == option %}selected{% endif %}>{{ option }}</option>
+                            {% endfor %}
+                          </select>
+                        {% else %}
+                          <input name="attr_{{ field.code }}" value="{{ form.get('attr_' ~ field.code, '') }}">
+                        {% endif %}
+                      </label>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+              </div>
+            {% endfor %}
+            <p class="muted">На следующем шаге сделаем показ только полей выбранного типа через HTMX.</p>
+          </section>
+
+          <section class="info-section">
+            <h2>5. Фото</h2>
+            <div class="photo-placeholder">Загрузка фото будет подключена следующим этапом</div>
+          </section>
+
+          <div class="form-actions">
+            <button type="submit" name="action" value="draft">Сохранить черновик</button>
+            <button type="submit" name="action" value="submit" class="primary">Отправить на проверку</button>
+          </div>
+        </form>
+      </article>
+
+      <aside class="panel side-detail">
+        <div class="detail-content">
+          <section class="info-section">
+            <h2>Подсказки</h2>
+            <ul class="check-list">
+              <li>Местонахождение должно позволять физически найти оборудование.</li>
+              <li>Для нерабочего оборудования обязательно опишите поломку.</li>
+              <li>Фото дефекта добавим следующим этапом.</li>
+              <li>Черновик можно сохранить до полной готовности.</li>
+            </ul>
+          </section>
+        </div>
+      </aside>
+    </section>
+  </main>
+</body>
+</html>

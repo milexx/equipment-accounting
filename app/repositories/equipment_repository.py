@@ -60,6 +60,11 @@ class EquipmentRepository:
         )
         return self.db.scalar(stmt)
 
+    def add(self, equipment: Equipment) -> Equipment:
+        self.db.add(equipment)
+        self.db.flush()
+        return equipment
+
     def _base_query(self, filters: EquipmentFilters) -> Select[tuple[Equipment]]:
         stmt = select(Equipment).where(Equipment.deleted_at.is_(None))
 
