@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from sqlalchemy.orm import Session
 
 from app.models.equipment import Equipment
@@ -64,16 +66,33 @@ class EquipmentService:
         if data.condition == EquipmentCondition.broken and not (data.defect_description or "").strip():
             raise ValueError("Для нерабочего оборудования опишите поломку.")
 
+        title = data.title.strip()
+        location = data.location.strip()
+        inventory_number = (data.inventory_number or "").strip() or None
+        serial_number = (data.serial_number or "").strip() or None
+
+        duplicate = self.repository.find_recent_duplicate(
+            region_id=data.region_id,
+            equipment_type_id=data.equipment_type_id,
+            title=title,
+            location=location,
+            inventory_number=inventory_number,
+            serial_number=serial_number,
+            created_within=timedelta(minutes=5),
+        )
+        if duplicate:
+            return duplicate
+
         attributes = self._validate_attributes(equipment_type.fields, data.attributes, data.status)
 
         equipment = Equipment(
             region_id=data.region_id,
             equipment_type_id=data.equipment_type_id,
             status=data.status,
-            title=data.title.strip(),
-            inventory_number=(data.inventory_number or "").strip() or None,
-            serial_number=(data.serial_number or "").strip() or None,
-            location=data.location.strip(),
+            title=title,
+            inventory_number=inventory_number,
+            serial_number=serial_number,
+            location=location,
             condition=data.condition,
             comment=(data.comment or "").strip() or None,
             defect_description=(data.defect_description or "").strip() or None,

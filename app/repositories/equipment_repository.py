@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from datetime import timedelta
+
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session, joinedload
 
@@ -64,6 +66,35 @@ class EquipmentRepository:
         self.db.add(equipment)
         self.db.flush()
         return equipment
+
+    def find_recent_duplicate(
+        self,
+        *,
+        region_id: int,
+        equipment_type_id: int,
+        title: str,
+        location: str,
+        inventory_number: str | None,
+        serial_number: str | None,
+        created_within: timedelta,
+    ) -> Equipment | None:
+        threshold = func.now() - created_within
+        stmt = (
+            select(Equipment)
+            .where(
+                Equipment.deleted_at.is_(None),
+                Equipment.region_id == region_id,
+                Equipment.equipment_type_id == equipment_type_id,
+                Equipment.title == title,
+                Equipment.location == location,
+                Equipment.inventory_number.is_not_distinct_from(inventory_number),
+                Equipment.serial_number.is_not_distinct_from(serial_number),
+                Equipment.created_at >= threshold,
+            )
+            .order_by(Equipment.created_at.desc())
+            .limit(1)
+        )
+        return self.db.scalar(stmt)
 
     def _base_query(self, filters: EquipmentFilters) -> Select[tuple[Equipment]]:
         stmt = select(Equipment).where(Equipment.deleted_at.is_(None))

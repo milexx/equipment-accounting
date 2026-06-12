@@ -35,7 +35,7 @@
           </div>
         {% endif %}
 
-        <form class="entry-form" method="post" action="/equipment">
+        <form class="entry-form" method="post" action="/equipment" data-submit-once>
           <section class="info-section">
             <h2>1. Тип и регион</h2>
             <div class="form-grid-fields">
@@ -171,4 +171,14 @@
     </section>
   </main>
 </body>
+<script>
+  document.querySelectorAll("form[data-submit-once]").forEach((form) => {
+    form.addEventListener("submit", () => {
+      form.querySelectorAll("button[type='submit']").forEach((button) => {
+        button.disabled = true;
+        button.textContent = "Сохраняю...";
+      });
+    });
+  });
+</script>
 </html>

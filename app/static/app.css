@@ -140,6 +140,11 @@ button.primary {
   font-weight: 700;
 }
 
+button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
 .filters {
   display: grid;
   grid-template-columns: 1.4fr repeat(3, minmax(160px, 220px)) auto;
