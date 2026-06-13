@@ -93,6 +93,9 @@ http://185.168.208.240:8010/
 http://185.168.208.240:8010/equipment
 http://185.168.208.240:8010/equipment/new
 http://185.168.208.240:8010/equipment/1
+http://185.168.208.240:8010/equipment/1/edit
+http://185.168.208.240:8010/region
+http://185.168.208.240:8010/login
 http://185.168.208.240:8010/prototype
 http://185.168.208.240:8010/health
 ```
@@ -150,6 +153,14 @@ e0d40b5 Prevent duplicate equipment form submissions
 ac49b8b Add equipment photo upload
 2aa96b6 Document concurrent usage requirements
 e8610ab Add center equipment actions
+cc09b79 Add center work queues
+e9d0604 Add regional workspace
+be21477 Add equipment editing with version checks
+c1f5937 Add auth provider placeholder
+545ee35 Apply demo auth role checks
+f47020e Add demo login flow
+93d8281 Improve demo login usability
+9908702 Show fields for selected equipment type
 ```
 
 ## Как Продолжать
@@ -158,9 +169,13 @@ e8610ab Add center equipment actions
 
 1. Проверить `git status`.
 2. Проверить, что dev-сервер доступен на `http://185.168.208.240:8010/health`.
-3. Следующий продуктовый шаг: сделать управление пользователями/учётками для `center_admin` или редактирование фото: дозагрузка, удаление и порядок.
-4. Для фото добавить отдельное редактирование: дозагрузка, удаление и порядок.
-6. Если бизнес-решения меняются, сначала обновить `docs/07_decisions.md` и `docs/11_business_processes.md`, затем синхронизировать требования, архитектуру, БД и `technical_specification.md`.
+3. Следующий продуктовый шаг: редактирование фото в карточке:
+   - дозагрузка фото;
+   - назначение фото;
+   - удаление фото;
+   - порядок фото.
+4. Альтернативный следующий шаг: управление пользователями/учётками для `center_admin`.
+5. Если бизнес-решения меняются, сначала обновить `docs/07_decisions.md` и `docs/11_business_processes.md`, затем синхронизировать требования, архитектуру, БД и `technical_specification.md`.
 
 ## Принятые Предварительные Решения
 
