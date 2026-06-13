@@ -26,18 +26,52 @@
             <p>{{ item.region.name }} · {{ item.equipment_type.name }}</p>
           </div>
           <div class="head-actions">
-            <button type="button">Вернуть</button>
-            <button type="button">На диагностику</button>
+            <form method="post" action="/equipment/{{ item.id }}/center-action" data-submit-once>
+              <input type="hidden" name="row_version" value="{{ item.row_version }}">
+              <input type="hidden" name="action" value="accept">
+              <button type="submit">Принять</button>
+            </form>
+            <form method="post" action="/equipment/{{ item.id }}/center-action" data-submit-once>
+              <input type="hidden" name="row_version" value="{{ item.row_version }}">
+              <input type="hidden" name="action" value="diagnostics">
+              <button type="submit">На диагностику</button>
+            </form>
             {% if item.condition.value == "broken" %}
-              <button type="button">На списание</button>
+              <form method="post" action="/equipment/{{ item.id }}/center-action" data-submit-once>
+                <input type="hidden" name="row_version" value="{{ item.row_version }}">
+                <input type="hidden" name="action" value="writeoff">
+                <button type="submit" class="primary">На списание</button>
+              </form>
             {% else %}
-              <button type="button">На оценку</button>
-              <button type="button" class="primary">К продаже</button>
+              <form method="post" action="/equipment/{{ item.id }}/center-action" data-submit-once>
+                <input type="hidden" name="row_version" value="{{ item.row_version }}">
+                <input type="hidden" name="action" value="valuation">
+                <button type="submit">На оценку</button>
+              </form>
+              <form method="post" action="/equipment/{{ item.id }}/center-action" data-submit-once>
+                <input type="hidden" name="row_version" value="{{ item.row_version }}">
+                <input type="hidden" name="action" value="sale">
+                <button type="submit" class="primary">К продаже</button>
+              </form>
             {% endif %}
           </div>
         </div>
 
         <div class="detail-content">
+          {% if error %}
+            <div class="form-errors detail-error">{{ error }}</div>
+          {% endif %}
+
+          <section class="info-section">
+            <h2>Возврат на доработку</h2>
+            <form method="post" action="/equipment/{{ item.id }}/center-action" class="inline-action-form" data-submit-once>
+              <input type="hidden" name="row_version" value="{{ item.row_version }}">
+              <input type="hidden" name="action" value="revision">
+              <textarea name="comment" placeholder="Что нужно исправить региону"></textarea>
+              <button type="submit">Вернуть на доработку</button>
+            </form>
+          </section>
+
           <section class="info-section">
             <h2>Статус и маршрут</h2>
             <div class="kv-grid">
@@ -72,6 +106,7 @@
               <div><span>Местонахождение</span><strong>{{ item.location or "-" }}</strong></div>
               <div><span>Комплектность</span><strong>{{ item.completeness or "-" }}</strong></div>
               <div><span>Создано</span><strong>{{ item.created_at.strftime("%d.%m.%Y") }}</strong></div>
+              <div><span>Версия карточки</span><strong>{{ item.row_version }}</strong></div>
             </div>
           </section>
 
@@ -153,11 +188,41 @@
 
           <section class="info-section">
             <h2>История</h2>
-            <p class="muted">Audit log будет подключён следующим этапом.</p>
+            {% if audit_logs %}
+              <div class="audit-list">
+                {% for log in audit_logs %}
+                  <div class="audit-item">
+                    <strong>{{ audit_action_labels.get(log.action, log.action) }}</strong>
+                    <span>{{ log.created_at.strftime("%d.%m.%Y %H:%M") }}</span>
+                    {% if log.new_data and log.new_data.get("comment") %}
+                      <p>{{ log.new_data.get("comment") }}</p>
+                    {% endif %}
+                    {% if log.old_data and log.new_data %}
+                      <small>
+                        {{ status_labels.get(log.old_data.get("status"), log.old_data.get("status")) }}
+                        →
+                        {{ status_labels.get(log.new_data.get("status"), log.new_data.get("status")) }}
+                      </small>
+                    {% endif %}
+                  </div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <p class="muted">Истории изменений пока нет.</p>
+            {% endif %}
           </section>
         </div>
       </aside>
     </section>
   </main>
 </body>
+<script>
+  document.querySelectorAll("form[data-submit-once]").forEach((form) => {
+    form.addEventListener("submit", () => {
+      form.querySelectorAll("button[type='submit']").forEach((button) => {
+        button.disabled = true;
+      });
+    });
+  });
+</script>
 </html>

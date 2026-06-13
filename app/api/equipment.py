@@ -1,4 +1,5 @@
 from typing import Annotated
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -234,6 +235,7 @@ def equipment_detail(
     equipment_id: int,
     request: Request,
     db: Annotated[Session, Depends(get_db)],
+    error: Annotated[str | None, Query()] = None,
 ) -> HTMLResponse:
     service = EquipmentService(db)
     item = service.get_equipment(equipment_id)
@@ -245,13 +247,37 @@ def equipment_detail(
         "equipment/detail.html",
         {
             "item": item,
+            "audit_logs": service.list_audit_log(equipment_id),
+            "error": error,
             "status_labels": STATUS_LABELS,
             "condition_labels": CONDITION_LABELS,
             "disposition_labels": DISPOSITION_LABELS,
             "sale_status_labels": SALE_STATUS_LABELS,
             "photo_purpose_labels": PHOTO_PURPOSE_LABELS,
+            "audit_action_labels": AUDIT_ACTION_LABELS,
         },
     )
+
+
+@router.post("/{equipment_id}/center-action", response_class=HTMLResponse)
+def equipment_center_action(
+    equipment_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    action: Annotated[str, Form()],
+    row_version: Annotated[int, Form()],
+    comment: Annotated[str | None, Form()] = None,
+) -> Response:
+    try:
+        item = EquipmentService(db).apply_center_action(
+            equipment_id=equipment_id,
+            action=action,
+            expected_row_version=row_version,
+            comment=comment,
+        )
+    except ValueError as exc:
+        return RedirectResponse(f"/equipment/{equipment_id}?error={quote(str(exc))}", status_code=303)
+
+    return RedirectResponse(f"/equipment/{item.id}", status_code=303)
 
 
 STATUS_LABELS = {
@@ -305,4 +331,13 @@ PHOTO_PURPOSE_LABELS = {
     "defect": "Дефект",
     "completeness": "Комплектность",
     "other": "Другое",
+}
+
+AUDIT_ACTION_LABELS = {
+    "center.accept": "Центр принял запись",
+    "center.revision": "Центр вернул на доработку",
+    "center.diagnostics": "Центр направил на диагностику",
+    "center.writeoff": "Центр направил на списание",
+    "center.valuation": "Центр направил на оценку",
+    "center.sale": "Центр подготовил к продаже",
 }

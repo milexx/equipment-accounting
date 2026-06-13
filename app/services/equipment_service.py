@@ -1,7 +1,9 @@
 from datetime import timedelta
 
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.models.audit import EquipmentAuditLog
 from app.models.equipment import Equipment
 from app.models.enums import (
     EquipmentCondition,
@@ -9,6 +11,7 @@ from app.models.enums import (
     EquipmentFieldType,
     EquipmentStatus,
 )
+from app.repositories.audit_repository import AuditRepository
 from app.repositories.equipment_repository import (
     EquipmentFilters,
     EquipmentListResult,
@@ -23,6 +26,7 @@ class EquipmentService:
     def __init__(self, db: Session) -> None:
         self.db = db
         self.repository = EquipmentRepository(db)
+        self.audit_repository = AuditRepository(db)
         self.type_repository = EquipmentTypeRepository(db)
         self.region_repository = RegionRepository(db)
 
@@ -49,6 +53,45 @@ class EquipmentService:
 
     def get_equipment(self, equipment_id: int):
         return self.repository.get(equipment_id)
+
+    def list_audit_log(self, equipment_id: int) -> list[EquipmentAuditLog]:
+        return self.audit_repository.list_for_equipment(equipment_id)
+
+    def apply_center_action(
+        self,
+        *,
+        equipment_id: int,
+        action: str,
+        expected_row_version: int,
+        comment: str | None = None,
+    ) -> Equipment:
+        stmt = (
+            select(Equipment)
+            .where(Equipment.id == equipment_id, Equipment.deleted_at.is_(None))
+            .with_for_update()
+        )
+        equipment = self.db.scalar(stmt)
+        if equipment is None:
+            raise ValueError("Карточка не найдена.")
+        if equipment.row_version != expected_row_version:
+            raise ValueError("Карточку уже изменили. Обновите страницу и повторите действие.")
+
+        old_data = self._audit_snapshot(equipment)
+        self._apply_transition(equipment, action, comment)
+        equipment.row_version += 1
+        equipment.updated_at = func.now()
+
+        self.audit_repository.add(
+            EquipmentAuditLog(
+                equipment_id=equipment.id,
+                action=f"center.{action}",
+                old_data=old_data,
+                new_data=self._audit_snapshot(equipment) | {"comment": (comment or "").strip()},
+            )
+        )
+        self.db.commit()
+        self.db.refresh(equipment)
+        return equipment
 
     def create_equipment(self, data: EquipmentCreateData) -> Equipment:
         equipment_type = self.type_repository.get_active(data.equipment_type_id)
@@ -103,6 +146,76 @@ class EquipmentService:
         self.db.commit()
         self.db.refresh(equipment)
         return equipment
+
+    def _apply_transition(self, equipment: Equipment, action: str, comment: str | None) -> None:
+        if equipment.status == EquipmentStatus.deleted:
+            raise ValueError("Удалённую карточку нельзя изменить.")
+
+        if action == "accept":
+            if equipment.status not in {EquipmentStatus.submitted, EquipmentStatus.needs_revision}:
+                raise ValueError("Принять можно только запись на проверке или после доработки.")
+            equipment.status = EquipmentStatus.accepted
+            return
+
+        if action == "revision":
+            revision_comment = (comment or "").strip()
+            if not revision_comment:
+                raise ValueError("Для возврата на доработку нужен комментарий центра.")
+            if equipment.status not in {
+                EquipmentStatus.submitted,
+                EquipmentStatus.accepted,
+                EquipmentStatus.diagnostics_required,
+            }:
+                raise ValueError("Эту запись сейчас нельзя вернуть на доработку.")
+            equipment.status = EquipmentStatus.needs_revision
+            equipment.revision_comment = revision_comment
+            return
+
+        if action == "diagnostics":
+            if equipment.status not in {EquipmentStatus.submitted, EquipmentStatus.accepted}:
+                raise ValueError("На диагностику можно отправить запись на проверке или принятую запись.")
+            equipment.status = EquipmentStatus.diagnostics_required
+            equipment.condition = EquipmentCondition.requires_diagnostics
+            return
+
+        if action == "writeoff":
+            if equipment.status not in {EquipmentStatus.submitted, EquipmentStatus.accepted}:
+                raise ValueError("На списание можно направить запись на проверке или принятую запись.")
+            if equipment.condition != EquipmentCondition.broken:
+                raise ValueError("На списание направляется только нерабочее оборудование.")
+            equipment.status = EquipmentStatus.writeoff_review
+            equipment.disposition = EquipmentDisposition.writeoff
+            return
+
+        if action == "valuation":
+            if equipment.status not in {EquipmentStatus.submitted, EquipmentStatus.accepted}:
+                raise ValueError("На оценку можно направить запись на проверке или принятую запись.")
+            if equipment.condition == EquipmentCondition.broken:
+                raise ValueError("Нерабочее оборудование должно идти на списание, а не на оценку.")
+            equipment.status = EquipmentStatus.valuation_pending
+            equipment.disposition = EquipmentDisposition.valuation
+            return
+
+        if action == "sale":
+            if equipment.status not in {EquipmentStatus.valuation_pending, EquipmentStatus.valued}:
+                raise ValueError("К продаже можно готовить оборудование после направления на оценку.")
+            if equipment.condition == EquipmentCondition.broken:
+                raise ValueError("Нерабочее оборудование нельзя направить к продаже.")
+            equipment.status = EquipmentStatus.sale_ready
+            equipment.disposition = EquipmentDisposition.sale
+            return
+
+        raise ValueError("Неизвестное действие центра.")
+
+    def _audit_snapshot(self, equipment: Equipment) -> dict:
+        return {
+            "status": equipment.status.value,
+            "condition": equipment.condition.value,
+            "disposition": equipment.disposition.value,
+            "sale_status": equipment.sale_status.value,
+            "revision_comment": equipment.revision_comment,
+            "row_version": equipment.row_version,
+        }
 
     def _validate_attributes(self, fields, raw_attributes: dict, status: EquipmentStatus) -> dict:
         attributes = {}

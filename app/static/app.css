@@ -124,6 +124,10 @@ a {
   flex-wrap: wrap;
 }
 
+.head-actions form {
+  margin: 0;
+}
+
 button {
   min-height: 38px;
   border: 1px solid #d9dee7;
@@ -473,6 +477,47 @@ textarea {
   font-weight: 700;
 }
 
+.detail-error {
+  margin: 0 0 18px;
+}
+
+.inline-action-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.inline-action-form textarea {
+  min-height: 58px;
+  margin-top: 0;
+}
+
+.audit-list {
+  display: grid;
+  gap: 10px;
+}
+
+.audit-item {
+  border: 1px solid #d9dee7;
+  border-radius: 6px;
+  padding: 10px;
+  background: #fbfcfe;
+}
+
+.audit-item span,
+.audit-item small {
+  display: block;
+  margin-top: 4px;
+  color: #667085;
+  font-size: 12px;
+}
+
+.audit-item p {
+  margin: 8px 0 0;
+  font-size: 14px;
+}
+
 @media (max-width: 980px) {
   .panel-head {
     flex-direction: column;
@@ -487,6 +532,10 @@ textarea {
   }
 
   .form-grid-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .inline-action-form {
     grid-template-columns: 1fr;
   }
 }
