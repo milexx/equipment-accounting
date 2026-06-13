@@ -7,6 +7,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.api.equipment import router as equipment_router
 from app.api.health import router as health_router
+from app.api.region import router as region_router
 from app.config import settings
 
 app = FastAPI(title="Equipment Accounting", version="0.1.0")
@@ -18,6 +19,7 @@ templates = Jinja2Templates(directory="app/templates")
 
 app.include_router(health_router)
 app.include_router(equipment_router)
+app.include_router(region_router)
 
 
 @app.get("/", response_class=HTMLResponse)

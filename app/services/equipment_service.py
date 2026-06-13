@@ -33,6 +33,7 @@ class EquipmentService:
     def list_equipment(
         self,
         *,
+        region_id: int | None = None,
         status: EquipmentStatus | None = None,
         condition: EquipmentCondition | None = None,
         disposition: EquipmentDisposition | None = None,
@@ -44,6 +45,7 @@ class EquipmentService:
         return self.repository.list(
             EquipmentFilters(
                 status=status,
+                region_id=region_id,
                 condition=condition,
                 disposition=disposition,
                 queue=queue,
@@ -55,6 +57,9 @@ class EquipmentService:
 
     def queue_counts(self) -> dict[str, int]:
         return self.repository.queue_counts()
+
+    def region_status_counts(self, region_id: int) -> dict[str, int]:
+        return self.repository.region_status_counts(region_id)
 
     def get_equipment(self, equipment_id: int):
         return self.repository.get(equipment_id)

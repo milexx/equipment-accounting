@@ -33,6 +33,7 @@ QUEUE_FILTERS = {
 
 @dataclass(frozen=True)
 class EquipmentFilters:
+    region_id: int | None = None
     status: EquipmentStatus | None = None
     condition: EquipmentCondition | None = None
     disposition: EquipmentDisposition | None = None
@@ -91,6 +92,33 @@ class EquipmentRepository:
             counts[queue_code] = self.db.scalar(stmt) or 0
         return counts
 
+    def region_status_counts(self, region_id: int) -> dict[str, int]:
+        statuses = [
+            EquipmentStatus.draft,
+            EquipmentStatus.submitted,
+            EquipmentStatus.needs_revision,
+            EquipmentStatus.accepted,
+        ]
+        counts = {
+            "all": self.db.scalar(
+                select(func.count())
+                .select_from(Equipment)
+                .where(Equipment.deleted_at.is_(None), Equipment.region_id == region_id)
+            )
+            or 0
+        }
+        for status in statuses:
+            counts[status.value] = self.db.scalar(
+                select(func.count())
+                .select_from(Equipment)
+                .where(
+                    Equipment.deleted_at.is_(None),
+                    Equipment.region_id == region_id,
+                    Equipment.status == status,
+                )
+            ) or 0
+        return counts
+
     def get(self, equipment_id: int) -> Equipment | None:
         stmt = (
             select(Equipment)
@@ -140,6 +168,8 @@ class EquipmentRepository:
     def _base_query(self, filters: EquipmentFilters) -> Select[tuple[Equipment]]:
         stmt = select(Equipment).where(Equipment.deleted_at.is_(None))
 
+        if filters.region_id:
+            stmt = stmt.where(Equipment.region_id == filters.region_id)
         if filters.status:
             stmt = stmt.where(Equipment.status == filters.status)
         if filters.condition:

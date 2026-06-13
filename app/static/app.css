@@ -289,6 +289,105 @@ th {
   text-decoration: underline;
 }
 
+.region-switcher {
+  padding: 16px 20px;
+  border-bottom: 1px solid #d9dee7;
+  background: #fbfcfe;
+}
+
+.region-switcher label {
+  max-width: 420px;
+}
+
+.region-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #d9dee7;
+}
+
+.summary-tile {
+  display: grid;
+  min-height: 88px;
+  align-content: space-between;
+  padding: 12px;
+  border: 1px solid #d9dee7;
+  border-radius: 8px;
+  background: #fff;
+  color: #1f2933;
+  text-decoration: none;
+}
+
+.summary-tile.active {
+  border-color: #1769aa;
+  background: #eef4fb;
+}
+
+.summary-tile span {
+  color: #667085;
+  font-size: 13px;
+}
+
+.summary-tile strong {
+  font-size: 30px;
+}
+
+.region-workflow {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 20px;
+  padding: 20px;
+}
+
+.region-workflow h2 {
+  margin: 0 0 12px;
+  font-size: 17px;
+}
+
+.step-list {
+  margin: 0;
+  padding-left: 20px;
+  color: #344054;
+}
+
+.step-list li {
+  margin: 10px 0;
+}
+
+.compact-list {
+  display: grid;
+  gap: 8px;
+}
+
+.compact-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 0;
+  padding: 12px;
+  border: 1px solid #d9dee7;
+  border-radius: 8px;
+  background: #fff;
+  color: #1f2933;
+  text-decoration: none;
+}
+
+.compact-row span,
+.compact-row em,
+.compact-row small {
+  display: block;
+  margin-top: 4px;
+  color: #667085;
+  font-size: 12px;
+  font-style: normal;
+}
+
+.compact-row em {
+  color: #9b1c1c;
+  font-weight: 700;
+}
+
 .strong {
   font-weight: 700;
 }
@@ -557,6 +656,11 @@ textarea {
   }
 
   .inline-action-form {
+    grid-template-columns: 1fr;
+  }
+
+  .region-summary,
+  .region-workflow {
     grid-template-columns: 1fr;
   }
 }

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Рабочее место филиала</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Учёт оборудования</div>
+    <nav>
+      <a href="/region" class="active">Филиал</a>
+      <a href="/equipment">Центр</a>
+      <a href="/equipment/new">Добавить</a>
+    </nav>
+  </header>
+
+  <main class="workbench">
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h1>Рабочее место филиала</h1>
+          {% if selected_region %}
+            <p>{{ selected_region.name }}. Быстрый ввод оборудования и контроль своих записей.</p>
+          {% else %}
+            <p>Нет активных филиалов для отображения.</p>
+          {% endif %}
+        </div>
+        <div class="head-actions">
+          <a class="button-link primary-link" href="/equipment/new">Добавить оборудование</a>
+        </div>
+      </div>
+
+      {% if selected_region %}
+        <form class="region-switcher" method="get" action="/region">
+          <label>
+            Филиал
+            <select name="region_id" onchange="this.form.submit()">
+              {% for region in regions %}
+                <option value="{{ region.id }}" {% if selected_region.id == region.id %}selected{% endif %}>
+                  {{ region.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </label>
+        </form>
+
+        <div class="region-summary">
+          <a class="summary-tile {{ 'active' if not status else '' }}" href="/region?region_id={{ selected_region.id }}">
+            <span>Все мои</span>
+            <strong>{{ counts.get("all", 0) }}</strong>
+          </a>
+          {% for item in status_tabs %}
+            <a class="summary-tile {{ 'active' if status == item.value else '' }}" href="/region?region_id={{ selected_region.id }}&status={{ item.value }}">
+              <span>{{ status_labels[item.value] }}</span>
+              <strong>{{ counts.get(item.value, 0) }}</strong>
+            </a>
+          {% endfor %}
+        </div>
+
+        <div class="region-workflow">
+          <section>
+            <h2>Что делать</h2>
+            <ol class="step-list">
+              <li>Добавьте оборудование.</li>
+              <li>Заполните местонахождение, состояние и фото.</li>
+              <li>Отправьте запись в центр.</li>
+              <li>Если вернули на доработку, откройте запись и исправьте замечания.</li>
+            </ol>
+          </section>
+          <section>
+            <h2>Последние записи</h2>
+            <div class="compact-list">
+              {% for item in result.items %}
+                <a class="compact-row" href="/equipment/{{ item.id }}">
+                  <div>
+                    <strong>{{ item.title }}</strong>
+                    <span>{{ item.equipment_type.name }} · {{ item.location or "место не указано" }}</span>
+                    {% if item.revision_comment %}
+                      <em>{{ item.revision_comment }}</em>
+                    {% endif %}
+                  </div>
+                  <small>{{ status_labels.get(item.status.value, item.status.value) }}</small>
+                </a>
+              {% else %}
+                <div class="empty">Пока нет записей по выбранному разделу.</div>
+              {% endfor %}
+            </div>
+          </section>
+        </div>
+      {% endif %}
+    </section>
+  </main>
+</body>
+</html>
