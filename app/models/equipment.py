@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Numeric, Text, func
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, Numeric, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -51,6 +51,7 @@ class Equipment(Base):
     sale_description: Mapped[str | None] = mapped_column(Text)
     is_public_listing: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     attributes: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    row_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     updated_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

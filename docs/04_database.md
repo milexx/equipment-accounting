@@ -162,6 +162,7 @@ CREATE TABLE equipment (
     sale_description TEXT,
     is_public_listing BOOLEAN NOT NULL DEFAULT FALSE,
     attributes JSONB NOT NULL DEFAULT '{}'::jsonb,
+    row_version INTEGER NOT NULL DEFAULT 1,
     created_by_user_id BIGINT REFERENCES users(id),
     updated_by_user_id BIGINT REFERENCES users(id),
     submitted_at TIMESTAMPTZ,
@@ -245,6 +246,22 @@ ON equipment_photos(equipment_id, purpose);
 CREATE INDEX idx_equipment_audit_equipment_id
 ON equipment_audit_log(equipment_id, created_at DESC);
 ```
+
+## 4.1. Согласованность При Одновременной Работе
+
+БД должна поддерживать одновременную работу не менее 60 региональных пользователей и центра без потери данных.
+
+Правила:
+
+- `equipment.row_version` используется для optimistic locking при редактировании карточки;
+- каждое успешное изменение карточки увеличивает `row_version`;
+- `updated_at` остаётся служебным временем изменения, но не является единственным механизмом защиты от конфликтов;
+- смена статуса выполняется условным обновлением по текущему статусу и версии записи или через блокировку одной строки;
+- блокировки не должны охватывать списки, экспорт или длительную обработку фото;
+- повторное создание одинаковой записи в коротком интервале должно отсекаться приложением, а при необходимости дополнительно защищаться уникальным ключом идемпотентности;
+- audit log фиксирует старые и новые значения, чтобы спорные изменения можно было восстановить.
+
+Для идемпотентности форм допускается отдельная таблица `form_submissions` или поле `client_request_id`, если защиты по естественным признакам станет недостаточно.
 
 ## 5. Индексы По JSONB-Полям
 
