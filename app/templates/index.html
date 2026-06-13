@@ -13,9 +13,17 @@
       Локальное демо: регионы заводят оборудование, центр принимает решение
       о списании, утилизации, оценке или продаже.
     </p>
+    <p>
+      Текущий пользователь: <strong>{{ current_user.display_name }}</strong>.
+    </p>
     <div class="actions">
-      <a href="/region">Рабочее место филиала</a>
-      <a href="/equipment">Открыть реестр</a>
+      <a href="/login">Войти</a>
+      <a href="/logout">Выйти</a>
+      {% if current_user.is_center %}
+        <a href="/equipment">Открыть реестр центра</a>
+      {% else %}
+        <a href="/region">Рабочее место филиала</a>
+      {% endif %}
       <a href="/equipment/new">Добавить оборудование</a>
       <a href="/health">Проверить backend</a>
       <a href="/prototype">Прототип интерфейса</a>

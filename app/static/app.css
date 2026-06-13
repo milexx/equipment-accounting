@@ -62,6 +62,47 @@ nav a.active {
   border-radius: 8px;
 }
 
+.login-page {
+  max-width: 760px;
+  margin: 72px auto;
+  padding: 0 20px;
+}
+
+.login-panel {
+  overflow: hidden;
+}
+
+.login-options {
+  display: grid;
+  gap: 10px;
+}
+
+.login-option {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid #d9dee7;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fbfcfe;
+}
+
+.login-option input {
+  width: auto;
+  margin: 0;
+}
+
+.login-option span,
+.login-option small {
+  display: block;
+}
+
+.login-option small {
+  margin-top: 4px;
+  color: #667085;
+  font-size: 12px;
+}
+
 h1 {
   margin: 0 0 12px;
   font-size: 28px;
