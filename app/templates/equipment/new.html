@@ -23,7 +23,7 @@
           <div>
             <div class="breadcrumbs"><a href="/equipment">Реестр</a> / новая запись</div>
             <h1>Добавить оборудование</h1>
-            <p>Быстрый ввод для региона. Фото подключим следующим шагом.</p>
+            <p>Быстрый ввод для региона: основные данные, состояние и подтверждающие фото.</p>
           </div>
         </div>
 
@@ -35,7 +35,7 @@
           </div>
         {% endif %}
 
-        <form class="entry-form" method="post" action="/equipment" data-submit-once>
+        <form class="entry-form" method="post" action="/equipment" enctype="multipart/form-data" data-submit-once>
           <section class="info-section">
             <h2>1. Тип и регион</h2>
             <div class="form-grid-fields">
@@ -145,7 +145,21 @@
 
           <section class="info-section">
             <h2>5. Фото</h2>
-            <div class="photo-placeholder">Загрузка фото будет подключена следующим этапом</div>
+            <div class="form-grid-fields">
+              <label>
+                Общий вид
+                <input name="photos_general" type="file" accept="image/jpeg,image/png,image/webp" multiple>
+              </label>
+              <label>
+                Шильдик или серийный номер
+                <input name="photos_serial" type="file" accept="image/jpeg,image/png,image/webp" multiple>
+              </label>
+              <label class="full-field">
+                Фото дефекта
+                <input name="photos_defect" type="file" accept="image/jpeg,image/png,image/webp" multiple>
+              </label>
+            </div>
+            <p class="muted">Для нерабочего оборудования при отправке на проверку нужно минимум одно фото дефекта.</p>
           </section>
 
           <div class="form-actions">
@@ -162,7 +176,7 @@
             <ul class="check-list">
               <li>Местонахождение должно позволять физически найти оборудование.</li>
               <li>Для нерабочего оборудования обязательно опишите поломку.</li>
-              <li>Фото дефекта добавим следующим этапом.</li>
+              <li>Для нерабочего оборудования приложите фото дефекта.</li>
               <li>Черновик можно сохранить до полной готовности.</li>
             </ul>
           </section>

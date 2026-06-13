@@ -118,10 +118,15 @@
             <h2>Фото</h2>
             {% if item.photos %}
               <div class="photo-list">
-                {% for photo in item.photos %}
+                {% for photo in item.photos|sort(attribute="display_order") %}
                   <div class="photo-card">
-                    <div class="thumb large"></div>
-                    <strong>{{ photo.purpose.value }}</strong>
+                    <a class="photo-thumb-link" href="{{ photo.original_path }}" target="_blank">
+                      <img class="thumb large" src="{{ photo.thumbnail_path }}" alt="{{ photo.original_filename or photo.purpose.value }}">
+                    </a>
+                    <div>
+                      <strong>{{ photo_purpose_labels[photo.purpose.value] }}</strong>
+                      <span>{{ photo.original_filename or "Фото" }}</span>
+                    </div>
                   </div>
                 {% endfor %}
               </div>
@@ -138,7 +143,7 @@
               <li class="{{ 'done' if item.photos else '' }}">Минимум одно фото</li>
               {% if item.condition.value == "broken" %}
                 <li class="{{ 'done' if item.defect_description else '' }}">Описание поломки</li>
-                <li>Фото дефекта</li>
+                <li class="{{ 'done' if item.photos|selectattr('purpose.value', 'equalto', 'defect')|list else '' }}">Фото дефекта</li>
               {% else %}
                 <li class="{{ 'done' if item.valuation_amount else '' }}">Оценка</li>
                 <li class="{{ 'done' if item.sale_price else '' }}">Цена продажи</li>

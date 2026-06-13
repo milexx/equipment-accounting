@@ -171,6 +171,11 @@ select {
   font: inherit;
 }
 
+input[type="file"] {
+  padding: 7px 10px;
+  background: #fff;
+}
+
 .view-tabs {
   padding: 12px 20px;
   border-bottom: 1px solid #d9dee7;
@@ -375,9 +380,29 @@ th {
   padding: 10px;
 }
 
+.photo-card span {
+  display: block;
+  margin-top: 3px;
+  color: #667085;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.photo-thumb-link {
+  display: inline-flex;
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  border-radius: 6px;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+
 .thumb.large {
   width: 72px;
   height: 72px;
+  object-fit: cover;
+  background: #e8eef6;
 }
 
 .check-list {

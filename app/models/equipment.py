@@ -62,4 +62,9 @@ class Equipment(Base):
 
     region = relationship("Region", back_populates="equipment_items")
     equipment_type = relationship("EquipmentType", back_populates="equipment_items")
-    photos = relationship("EquipmentPhoto", back_populates="equipment")
+    photos = relationship(
+        "EquipmentPhoto",
+        back_populates="equipment",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )

@@ -1,16 +1,24 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.enums import EquipmentCondition, EquipmentDisposition, EquipmentStatus
+from app.models.enums import (
+    EquipmentCondition,
+    EquipmentDisposition,
+    EquipmentPhotoPurpose,
+    EquipmentStatus,
+)
+from app.models.photo import EquipmentPhoto
+from app.repositories.photo_repository import EquipmentPhotoRepository
 from app.repositories.equipment_type_repository import EquipmentTypeRepository
 from app.repositories.region_repository import RegionRepository
 from app.schemas.equipment import EquipmentCreateData
 from app.services.equipment_service import EquipmentService
+from app.media_storage.photo_storage import PhotoStorage
 
 router = APIRouter(prefix="/equipment", tags=["equipment"])
 templates = Jinja2Templates(directory="app/templates")
@@ -110,10 +118,27 @@ async def equipment_create(
         for key, value in form.items()
         if key.startswith("attr_")
     }
+    uploads = collect_photo_uploads(form)
     target_status = (
         EquipmentStatus.submitted if action == "submit" else EquipmentStatus.draft
     )
     parsed_condition = parse_enum(EquipmentCondition, condition) or EquipmentCondition.unknown
+
+    if (
+        target_status == EquipmentStatus.submitted
+        and parsed_condition == EquipmentCondition.broken
+        and not uploads[EquipmentPhotoPurpose.defect]
+    ):
+        return templates.TemplateResponse(
+            request,
+            "equipment/new.html",
+            {
+                **form_options(db),
+                "errors": ["Для нерабочего оборудования приложите минимум одно фото дефекта."],
+                "form": dict(form),
+            },
+            status_code=400,
+        )
 
     data = EquipmentCreateData(
         region_id=region_id,
@@ -132,6 +157,7 @@ async def equipment_create(
 
     try:
         item = EquipmentService(db).create_equipment(data)
+        await save_uploaded_photos(db, item.id, uploads)
     except (ValueError, TypeError) as exc:
         return templates.TemplateResponse(
             request,
@@ -145,6 +171,62 @@ async def equipment_create(
         )
 
     return RedirectResponse(f"/equipment/{item.id}", status_code=303)
+
+
+def collect_photo_uploads(form) -> dict[EquipmentPhotoPurpose, list[UploadFile]]:
+    uploads: dict[EquipmentPhotoPurpose, list[UploadFile]] = {
+        EquipmentPhotoPurpose.general: [],
+        EquipmentPhotoPurpose.serial: [],
+        EquipmentPhotoPurpose.defect: [],
+    }
+    field_map = {
+        "photos_general": EquipmentPhotoPurpose.general,
+        "photos_serial": EquipmentPhotoPurpose.serial,
+        "photos_defect": EquipmentPhotoPurpose.defect,
+    }
+    for field_name, purpose in field_map.items():
+        for upload in form.getlist(field_name):
+            if hasattr(upload, "filename") and upload.filename:
+                uploads[purpose].append(upload)
+    return uploads
+
+
+async def save_uploaded_photos(
+    db: Session,
+    equipment_id: int,
+    uploads: dict[EquipmentPhotoPurpose, list[UploadFile]],
+) -> None:
+    storage = PhotoStorage()
+    photos: list[EquipmentPhoto] = []
+    display_order = 0
+    for purpose, files in uploads.items():
+        for upload in files:
+            stored = await storage.save_upload(
+                equipment_id=equipment_id,
+                upload=upload,
+                purpose=purpose,
+            )
+            if stored is None:
+                continue
+            photos.append(
+                EquipmentPhoto(
+                    id=stored.id,
+                    equipment_id=equipment_id,
+                    original_path=stored.original_path,
+                    thumbnail_path=stored.thumbnail_path,
+                    original_filename=stored.original_filename,
+                    content_type=stored.content_type,
+                    purpose=stored.purpose,
+                    file_size=stored.file_size,
+                    width=stored.width,
+                    height=stored.height,
+                    display_order=display_order,
+                )
+            )
+            display_order += 1
+    if photos:
+        EquipmentPhotoRepository(db).add_all(photos)
+        db.commit()
 
 
 @router.get("/{equipment_id}", response_class=HTMLResponse)
@@ -167,6 +249,7 @@ def equipment_detail(
             "condition_labels": CONDITION_LABELS,
             "disposition_labels": DISPOSITION_LABELS,
             "sale_status_labels": SALE_STATUS_LABELS,
+            "photo_purpose_labels": PHOTO_PURPOSE_LABELS,
         },
     )
 
@@ -214,4 +297,12 @@ SALE_STATUS_LABELS = {
     "listed": "Опубликовано",
     "reserved": "Зарезервировано",
     "sold": "Продано",
+}
+
+PHOTO_PURPOSE_LABELS = {
+    "general": "Общий вид",
+    "serial": "Шильдик / серийный номер",
+    "defect": "Дефект",
+    "completeness": "Комплектность",
+    "other": "Другое",
 }
