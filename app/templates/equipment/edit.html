@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Редактировать {{ item.title }}</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Учёт оборудования</div>
+    <nav>
+      <a href="/">Главная</a>
+      <a href="/region">Филиал</a>
+      <a href="/equipment" class="active">Реестр</a>
+    </nav>
+  </header>
+
+  <main class="workbench">
+    <section class="detail-layout">
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="breadcrumbs"><a href="/equipment/{{ item.id }}">Карточка #{{ item.id }}</a> / редактирование</div>
+            <h1>Редактировать оборудование</h1>
+            <p>{{ item.region.name }} · {{ item.equipment_type.name }}</p>
+          </div>
+        </div>
+
+        {% if errors %}
+          <div class="form-errors">
+            {% for error in errors %}
+              <div>{{ error }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        {% if item.revision_comment %}
+          <div class="form-errors">
+            <div>{{ item.revision_comment }}</div>
+          </div>
+        {% endif %}
+
+        <form class="entry-form" method="post" action="/equipment/{{ item.id }}" data-submit-once>
+          <input type="hidden" name="row_version" value="{{ form.get('row_version', item.row_version) }}">
+
+          <section class="info-section">
+            <h2>1. Основные сведения</h2>
+            <div class="form-grid-fields">
+              <label>
+                Наименование
+                <input name="title" value="{{ form.get('title', '') }}" required>
+              </label>
+              <label>
+                Местонахождение
+                <input name="location" value="{{ form.get('location', '') }}" placeholder="Склад, кабинет, стойка" required>
+              </label>
+              <label>
+                Инвентарный номер
+                <input name="inventory_number" value="{{ form.get('inventory_number', '') }}">
+              </label>
+              <label>
+                Серийный номер
+                <input name="serial_number" value="{{ form.get('serial_number', '') }}">
+              </label>
+              <label class="full-field">
+                Комплектность
+                <input name="completeness" value="{{ form.get('completeness', '') }}" placeholder="Например: устройство, блок питания, кабели">
+              </label>
+            </div>
+          </section>
+
+          <section class="info-section">
+            <h2>2. Состояние</h2>
+            <div class="form-grid-fields">
+              <label>
+                Состояние оборудования
+                <select name="condition" required>
+                  {% for condition in conditions %}
+                    {% if condition.value in ["working", "broken", "requires_diagnostics"] %}
+                      <option value="{{ condition.value }}" {% if form.get("condition") == condition.value %}selected{% endif %}>
+                        {{ condition_labels[condition.value] }}
+                      </option>
+                    {% endif %}
+                  {% endfor %}
+                </select>
+              </label>
+              <label class="full-field">
+                Что сломано
+                <textarea name="defect_description" placeholder="Заполняется для нерабочего оборудования">{{ form.get('defect_description', '') }}</textarea>
+              </label>
+              <label class="full-field">
+                Комментарий
+                <textarea name="comment" placeholder="Дополнительная информация">{{ form.get('comment', '') }}</textarea>
+              </label>
+            </div>
+          </section>
+
+          <section class="info-section">
+            <h2>3. Поля типа</h2>
+            <div class="type-fieldset">
+              <h3>{{ item.equipment_type.name }}</h3>
+              <div class="form-grid-fields">
+                {% for field in item.equipment_type.fields|sort(attribute="display_order") %}
+                  {% if field.is_active %}
+                    <label>
+                      {{ field.name }}{% if field.is_required %} *{% endif %}
+                      {% if field.field_type.value == "text" %}
+                        <textarea name="attr_{{ field.code }}">{{ form.get("attr_" ~ field.code, "") }}</textarea>
+                      {% elif field.field_type.value in ["integer", "decimal"] %}
+                        <input name="attr_{{ field.code }}" type="number" value="{{ form.get('attr_' ~ field.code, '') }}">
+                      {% elif field.field_type.value == "select" %}
+                        <select name="attr_{{ field.code }}">
+                          <option value="">Не выбрано</option>
+                          {% for option in field.options %}
+                            <option value="{{ option }}" {% if form.get("attr_" ~ field.code) == option %}selected{% endif %}>{{ option }}</option>
+                          {% endfor %}
+                        </select>
+                      {% else %}
+                        <input name="attr_{{ field.code }}" value="{{ form.get('attr_' ~ field.code, '') }}">
+                      {% endif %}
+                    </label>
+                  {% endif %}
+                {% endfor %}
+              </div>
+            </div>
+          </section>
+
+          <div class="form-actions">
+            <a class="button-link" href="/equipment/{{ item.id }}">Отмена</a>
+            <button type="submit" name="action" value="save">Сохранить черновик</button>
+            <button type="submit" name="action" value="submit" class="primary">Сохранить и отправить в центр</button>
+          </div>
+        </form>
+      </article>
+
+      <aside class="panel side-detail">
+        <div class="detail-content">
+          <section class="info-section">
+            <h2>Контроль</h2>
+            <ul class="check-list">
+              <li>Версия карточки: {{ item.row_version }}</li>
+              <li>После сохранения версия увеличится.</li>
+              <li>Если карточку уже изменили, система попросит обновить страницу.</li>
+              {% if item.status.value == "needs_revision" %}
+                <li>После исправления запись станет черновиком, её нужно снова отправить в центр.</li>
+              {% endif %}
+            </ul>
+          </section>
+        </div>
+      </aside>
+    </section>
+  </main>
+</body>
+<script>
+  document.querySelectorAll("form[data-submit-once]").forEach((form) => {
+    form.addEventListener("submit", () => {
+      form.querySelectorAll("button[type='submit']").forEach((button) => {
+        button.disabled = true;
+        button.textContent = "Сохраняю...";
+      });
+    });
+  });
+</script>
+</html>

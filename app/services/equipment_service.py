@@ -19,7 +19,7 @@ from app.repositories.equipment_repository import (
 )
 from app.repositories.equipment_type_repository import EquipmentTypeRepository
 from app.repositories.region_repository import RegionRepository
-from app.schemas.equipment import EquipmentCreateData
+from app.schemas.equipment import EquipmentCreateData, EquipmentUpdateData
 
 
 class EquipmentService:
@@ -157,6 +157,68 @@ class EquipmentService:
         self.db.refresh(equipment)
         return equipment
 
+    def update_equipment(self, equipment_id: int, data: EquipmentUpdateData) -> Equipment:
+        stmt = (
+            select(Equipment)
+            .where(Equipment.id == equipment_id, Equipment.deleted_at.is_(None))
+            .with_for_update()
+        )
+        equipment = self.db.scalar(stmt)
+        if equipment is None:
+            raise ValueError("Карточка не найдена.")
+        if equipment.row_version != data.row_version:
+            raise ValueError("Карточку уже изменили. Обновите страницу и повторите сохранение.")
+
+        if equipment.status == EquipmentStatus.deleted:
+            raise ValueError("Удалённую карточку нельзя редактировать.")
+        if not data.title.strip():
+            raise ValueError("Заполните наименование.")
+        if not data.location.strip():
+            raise ValueError("Заполните местонахождение.")
+        if data.condition == EquipmentCondition.broken and not (data.defect_description or "").strip():
+            raise ValueError("Для нерабочего оборудования опишите поломку.")
+
+        equipment_type = self.type_repository.get_active(equipment.equipment_type_id)
+        if equipment_type is None:
+            raise ValueError("Тип оборудования не найден или отключён.")
+
+        old_data = self._audit_snapshot(equipment) | self._audit_edit_snapshot(equipment)
+        equipment.title = data.title.strip()
+        equipment.location = data.location.strip()
+        equipment.inventory_number = (data.inventory_number or "").strip() or None
+        equipment.serial_number = (data.serial_number or "").strip() or None
+        equipment.completeness = (data.completeness or "").strip() or None
+        equipment.defect_description = (data.defect_description or "").strip() or None
+        equipment.comment = (data.comment or "").strip() or None
+        equipment.condition = data.condition
+        equipment.attributes = self._validate_attributes(
+            equipment_type.fields,
+            data.attributes,
+            equipment.status,
+        )
+        if data.submit_after_save:
+            if equipment.status not in {EquipmentStatus.draft, EquipmentStatus.needs_revision}:
+                raise ValueError("Отправить в центр можно только черновик или запись на доработке.")
+            equipment.status = EquipmentStatus.submitted
+            equipment.revision_comment = None
+        elif equipment.status == EquipmentStatus.needs_revision:
+            equipment.status = EquipmentStatus.draft
+            equipment.revision_comment = None
+        equipment.row_version += 1
+        equipment.updated_at = func.now()
+
+        self.audit_repository.add(
+            EquipmentAuditLog(
+                equipment_id=equipment.id,
+                action="equipment.update",
+                old_data=old_data,
+                new_data=self._audit_snapshot(equipment) | self._audit_edit_snapshot(equipment),
+            )
+        )
+        self.db.commit()
+        self.db.refresh(equipment)
+        return equipment
+
     def _apply_transition(self, equipment: Equipment, action: str, comment: str | None) -> None:
         if equipment.status == EquipmentStatus.deleted:
             raise ValueError("Удалённую карточку нельзя изменить.")
@@ -225,6 +287,18 @@ class EquipmentService:
             "sale_status": equipment.sale_status.value,
             "revision_comment": equipment.revision_comment,
             "row_version": equipment.row_version,
+        }
+
+    def _audit_edit_snapshot(self, equipment: Equipment) -> dict:
+        return {
+            "title": equipment.title,
+            "location": equipment.location,
+            "inventory_number": equipment.inventory_number,
+            "serial_number": equipment.serial_number,
+            "completeness": equipment.completeness,
+            "defect_description": equipment.defect_description,
+            "comment": equipment.comment,
+            "attributes": equipment.attributes,
         }
 
     def _validate_attributes(self, fields, raw_attributes: dict, status: EquipmentStatus) -> dict:

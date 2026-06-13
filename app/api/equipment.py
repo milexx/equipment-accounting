@@ -17,7 +17,7 @@ from app.models.photo import EquipmentPhoto
 from app.repositories.photo_repository import EquipmentPhotoRepository
 from app.repositories.equipment_type_repository import EquipmentTypeRepository
 from app.repositories.region_repository import RegionRepository
-from app.schemas.equipment import EquipmentCreateData
+from app.schemas.equipment import EquipmentCreateData, EquipmentUpdateData
 from app.services.equipment_service import EquipmentService
 from app.media_storage.photo_storage import PhotoStorage
 
@@ -103,6 +103,23 @@ def equipment_new(
     )
 
 
+def edit_form_from_item(item) -> dict:
+    form = {
+        "title": item.title,
+        "location": item.location or "",
+        "inventory_number": item.inventory_number or "",
+        "serial_number": item.serial_number or "",
+        "completeness": item.completeness or "",
+        "condition": item.condition.value,
+        "defect_description": item.defect_description or "",
+        "comment": item.comment or "",
+        "row_version": str(item.row_version),
+    }
+    for key, value in (item.attributes or {}).items():
+        form[f"attr_{key}"] = value
+    return form
+
+
 @router.post("", response_class=HTMLResponse)
 async def equipment_create(
     request: Request,
@@ -178,6 +195,87 @@ async def equipment_create(
         )
 
     return RedirectResponse(f"/equipment/{item.id}", status_code=303)
+
+
+@router.get("/{equipment_id}/edit", response_class=HTMLResponse)
+def equipment_edit(
+    equipment_id: int,
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+) -> HTMLResponse:
+    service = EquipmentService(db)
+    item = service.get_equipment(equipment_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Equipment not found")
+
+    return templates.TemplateResponse(
+        request,
+        "equipment/edit.html",
+        {
+            **form_options(db),
+            "item": item,
+            "errors": [],
+            "form": edit_form_from_item(item),
+        },
+    )
+
+
+@router.post("/{equipment_id}", response_class=HTMLResponse)
+async def equipment_update(
+    equipment_id: int,
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+    title: Annotated[str, Form()],
+    location: Annotated[str, Form()],
+    condition: Annotated[str, Form()],
+    row_version: Annotated[int, Form()],
+    inventory_number: Annotated[str | None, Form()] = None,
+    serial_number: Annotated[str | None, Form()] = None,
+    completeness: Annotated[str | None, Form()] = None,
+    defect_description: Annotated[str | None, Form()] = None,
+    comment: Annotated[str | None, Form()] = None,
+    action: Annotated[str, Form()] = "save",
+) -> Response:
+    service = EquipmentService(db)
+    item = service.get_equipment(equipment_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Equipment not found")
+
+    form = await request.form()
+    attributes = {
+        key.removeprefix("attr_"): value
+        for key, value in form.items()
+        if key.startswith("attr_")
+    }
+    data = EquipmentUpdateData(
+        title=title,
+        location=location,
+        condition=parse_enum(EquipmentCondition, condition) or EquipmentCondition.unknown,
+        row_version=row_version,
+        submit_after_save=action == "submit",
+        inventory_number=inventory_number,
+        serial_number=serial_number,
+        completeness=completeness,
+        defect_description=defect_description,
+        comment=comment,
+        attributes=attributes,
+    )
+    try:
+        updated_item = service.update_equipment(equipment_id, data)
+    except (ValueError, TypeError) as exc:
+        return templates.TemplateResponse(
+            request,
+            "equipment/edit.html",
+            {
+                **form_options(db),
+                "item": item,
+                "errors": [str(exc)],
+                "form": dict(form),
+            },
+            status_code=400,
+        )
+
+    return RedirectResponse(f"/equipment/{updated_item.id}", status_code=303)
 
 
 def collect_photo_uploads(form) -> dict[EquipmentPhotoPurpose, list[UploadFile]]:
@@ -348,6 +446,7 @@ QUEUE_LABELS = {
 }
 
 AUDIT_ACTION_LABELS = {
+    "equipment.update": "Карточка отредактирована",
     "center.accept": "Центр принял запись",
     "center.revision": "Центр вернул на доработку",
     "center.diagnostics": "Центр направил на диагностику",
