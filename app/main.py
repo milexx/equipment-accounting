@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -31,8 +31,3 @@ def index(request: Request) -> HTMLResponse:
     with SessionLocal() as db:
         current_user = get_auth_provider().get_current_user(request, db)
     return templates.TemplateResponse(request, "index.html", {"current_user": current_user})
-
-
-@app.get("/prototype", response_class=HTMLResponse)
-def prototype() -> FileResponse:
-    return FileResponse("prototypes/interface.html")

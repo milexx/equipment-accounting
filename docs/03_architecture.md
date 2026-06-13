@@ -66,7 +66,6 @@ app/
   static/
 alembic/
 tests/
-prototypes/
 ```
 
 ## 3. Слои

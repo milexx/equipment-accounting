@@ -34,7 +34,6 @@
 - `docs/11_business_processes.md` - бизнес-процессы системы от ввода до списания, утилизации, оценки и продажи.
 - `docs/technical_specification.md` - единое ТЗ для разработчика.
 - `docs/continuation.md` - как продолжать работу.
-- `prototypes/interface.html` - статичный прототип ключевых экранов.
 
 ## Следующий Шаг
 
@@ -53,5 +52,7 @@ python3 -m venv .venv
 Демо:
 
 - `http://127.0.0.1:8010/`
+- `http://127.0.0.1:8010/login`
+- `http://127.0.0.1:8010/region`
+- `http://127.0.0.1:8010/equipment`
 - `http://127.0.0.1:8010/health`
-- `http://127.0.0.1:8010/prototype`
