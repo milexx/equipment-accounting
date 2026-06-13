@@ -51,13 +51,16 @@ def equipment_index(
     status: Annotated[str | None, Query()] = None,
     condition: Annotated[str | None, Query()] = None,
     disposition: Annotated[str | None, Query()] = None,
+    queue: Annotated[str | None, Query()] = None,
     page: Annotated[int, Query(ge=1)] = 1,
 ) -> HTMLResponse:
     service = EquipmentService(db)
+    active_queue = queue if queue in QUEUE_LABELS else ""
     result = service.list_equipment(
         status=parse_enum(EquipmentStatus, status),
         condition=parse_enum(EquipmentCondition, condition),
         disposition=parse_enum(EquipmentDisposition, disposition),
+        queue=active_queue,
         query=q,
         page=page,
         page_size=50,
@@ -71,6 +74,9 @@ def equipment_index(
             "status": status or "",
             "condition": condition or "",
             "disposition": disposition or "",
+            "queue": active_queue,
+            "queues": QUEUE_LABELS,
+            "queue_counts": service.queue_counts(),
             "statuses": EquipmentStatus,
             "conditions": EquipmentCondition,
             "dispositions": EquipmentDisposition,
@@ -331,6 +337,14 @@ PHOTO_PURPOSE_LABELS = {
     "defect": "Дефект",
     "completeness": "Комплектность",
     "other": "Другое",
+}
+
+QUEUE_LABELS = {
+    "review": "На проверке",
+    "revision": "Доработка",
+    "diagnostics": "Диагностика",
+    "writeoff": "Списание",
+    "sale": "Оценка / продажа",
 }
 
 AUDIT_ACTION_LABELS = {

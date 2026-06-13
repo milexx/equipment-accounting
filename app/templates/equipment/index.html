@@ -32,6 +32,9 @@
       </div>
 
       <form class="filters" method="get" action="/equipment">
+        {% if queue %}
+          <input type="hidden" name="queue" value="{{ queue }}">
+        {% endif %}
         <label>
           Поиск
           <input name="q" value="{{ q }}" placeholder="Название, инвентарный или серийный номер">
@@ -73,11 +76,16 @@
       </form>
 
       <div class="view-tabs">
-        <a href="/equipment?status=submitted">Новые на проверку</a>
-        <a href="/equipment?condition=broken">Нерабочее</a>
-        <a href="/equipment?disposition=writeoff">К списанию</a>
-        <a href="/equipment?disposition=valuation">На оценку</a>
-        <a href="/equipment?disposition=sale">Продажа</a>
+        <a href="/equipment" class="{{ 'active' if not queue else '' }}">
+          Все
+          <span>{{ queue_counts["all"] }}</span>
+        </a>
+        {% for code, label in queues.items() %}
+          <a href="/equipment?queue={{ code }}" class="{{ 'active' if queue == code else '' }}">
+            {{ label }}
+            <span>{{ queue_counts[code] }}</span>
+          </a>
+        {% endfor %}
       </div>
 
       <div class="table-wrap">

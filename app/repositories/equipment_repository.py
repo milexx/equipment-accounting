@@ -9,11 +9,34 @@ from app.models.equipment import Equipment
 from app.models.enums import EquipmentCondition, EquipmentDisposition, EquipmentStatus
 
 
+QUEUE_FILTERS = {
+    "review": Equipment.status == EquipmentStatus.submitted,
+    "revision": Equipment.status == EquipmentStatus.needs_revision,
+    "diagnostics": Equipment.status == EquipmentStatus.diagnostics_required,
+    "writeoff": Equipment.status.in_(
+        [
+            EquipmentStatus.writeoff_review,
+            EquipmentStatus.writeoff_approved,
+            EquipmentStatus.disposal_pending,
+        ]
+    ),
+    "sale": Equipment.status.in_(
+        [
+            EquipmentStatus.valuation_pending,
+            EquipmentStatus.valued,
+            EquipmentStatus.sale_ready,
+            EquipmentStatus.listed_for_sale,
+        ]
+    ),
+}
+
+
 @dataclass(frozen=True)
 class EquipmentFilters:
     status: EquipmentStatus | None = None
     condition: EquipmentCondition | None = None
     disposition: EquipmentDisposition | None = None
+    queue: str | None = None
     query: str | None = None
     page: int = 1
     page_size: int = 50
@@ -49,6 +72,24 @@ class EquipmentRepository:
         total = self.db.scalar(count_stmt) or 0
         items = list(self.db.scalars(items_stmt).unique())
         return EquipmentListResult(items=items, total=total, page=page, page_size=page_size)
+
+    def queue_counts(self) -> dict[str, int]:
+        counts: dict[str, int] = {
+            "all": self.db.scalar(
+                select(func.count())
+                .select_from(Equipment)
+                .where(Equipment.deleted_at.is_(None))
+            )
+            or 0
+        }
+        for queue_code, condition in QUEUE_FILTERS.items():
+            stmt = (
+                select(func.count())
+                .select_from(Equipment)
+                .where(Equipment.deleted_at.is_(None), condition)
+            )
+            counts[queue_code] = self.db.scalar(stmt) or 0
+        return counts
 
     def get(self, equipment_id: int) -> Equipment | None:
         stmt = (
@@ -105,6 +146,8 @@ class EquipmentRepository:
             stmt = stmt.where(Equipment.condition == filters.condition)
         if filters.disposition:
             stmt = stmt.where(Equipment.disposition == filters.disposition)
+        if filters.queue in QUEUE_FILTERS:
+            stmt = stmt.where(QUEUE_FILTERS[filters.queue])
         if filters.query:
             like = f"%{filters.query.strip()}%"
             stmt = stmt.where(

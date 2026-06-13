@@ -185,6 +185,27 @@ input[type="file"] {
   border-bottom: 1px solid #d9dee7;
 }
 
+.view-tabs a {
+  gap: 8px;
+}
+
+.view-tabs a.active {
+  border-color: #1769aa;
+  background: #eef4fb;
+  color: #0f4f83;
+  font-weight: 700;
+}
+
+.view-tabs span {
+  min-width: 24px;
+  border-radius: 999px;
+  background: #e4e9f1;
+  color: #344054;
+  padding: 2px 7px;
+  text-align: center;
+  font-size: 12px;
+}
+
 .table-wrap {
   overflow-x: auto;
 }

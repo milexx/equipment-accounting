@@ -36,6 +36,7 @@ class EquipmentService:
         status: EquipmentStatus | None = None,
         condition: EquipmentCondition | None = None,
         disposition: EquipmentDisposition | None = None,
+        queue: str | None = None,
         query: str | None = None,
         page: int = 1,
         page_size: int = 50,
@@ -45,11 +46,15 @@ class EquipmentService:
                 status=status,
                 condition=condition,
                 disposition=disposition,
+                queue=queue,
                 query=query,
                 page=page,
                 page_size=page_size,
             )
         )
+
+    def queue_counts(self) -> dict[str, int]:
+        return self.repository.queue_counts()
 
     def get_equipment(self, equipment_id: int):
         return self.repository.get(equipment_id)
