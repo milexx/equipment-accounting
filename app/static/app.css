@@ -77,27 +77,32 @@ nav a.active {
   gap: 10px;
 }
 
-.login-option {
-  display: flex;
-  gap: 12px;
-  align-items: center;
+.login-option-form {
+  margin: 0;
+}
+
+.login-option-button {
+  width: 100%;
+  min-height: 66px;
   border: 1px solid #d9dee7;
   border-radius: 8px;
   padding: 12px;
   background: #fbfcfe;
+  text-align: left;
+  cursor: pointer;
 }
 
-.login-option input {
-  width: auto;
-  margin: 0;
+.login-option-button:hover {
+  border-color: #1769aa;
+  background: #eef4fb;
 }
 
-.login-option span,
-.login-option small {
+.login-option-button span,
+.login-option-button small {
   display: block;
 }
 
-.login-option small {
+.login-option-button small {
   margin-top: 4px;
   color: #667085;
   font-size: 12px;

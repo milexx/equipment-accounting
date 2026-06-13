@@ -32,8 +32,16 @@ def login_page(
 @router.post("/login")
 def login(
     login_name: Annotated[str, Form(alias="login")],
+    db: Annotated[Session, Depends(get_db)],
 ) -> Response:
-    response = RedirectResponse("/", status_code=303)
+    user = db.scalar(select(User).where(User.login == login_name, User.is_active.is_(True)))
+    redirect_to = "/"
+    if user and user.role.value == "region":
+        redirect_to = "/region"
+    elif user:
+        redirect_to = "/equipment"
+
+    response = RedirectResponse(redirect_to, status_code=303)
     response.set_cookie(
         "demo_user",
         login_name,

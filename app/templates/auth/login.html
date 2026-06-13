@@ -15,25 +15,24 @@
           <p>Локальный вход для проверки ролей без Keycloak.</p>
         </div>
       </div>
-      <form class="entry-form" method="post" action="/login">
+      <div class="entry-form">
         <section class="info-section">
-          <h2>Пользователь</h2>
+          <h2>Выберите пользователя</h2>
           <div class="login-options">
             {% for user in users %}
-              <label class="login-option">
-                <input type="radio" name="login" value="{{ user.login }}" {% if loop.first %}checked{% endif %}>
-                <span>
-                  <strong>{{ user.display_name }}</strong>
-                  <small>{{ role_labels[user.role.value] }}{% if user.region %} · {{ user.region.name }}{% endif %}</small>
-                </span>
-              </label>
+              <form method="post" action="/login" class="login-option-form">
+                <input type="hidden" name="login" value="{{ user.login }}">
+                <button type="submit" class="login-option-button">
+                  <span>
+                    <strong>{{ user.display_name }}</strong>
+                    <small>{{ role_labels[user.role.value] }}{% if user.region %} · {{ user.region.name }}{% endif %}</small>
+                  </span>
+                </button>
+              </form>
             {% endfor %}
           </div>
         </section>
-        <div class="form-actions">
-          <button type="submit" class="primary">Войти</button>
-        </div>
-      </form>
+      </div>
     </section>
   </main>
 </body>
