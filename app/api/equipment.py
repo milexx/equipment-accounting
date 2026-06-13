@@ -6,6 +6,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
+from app.auth.provider import can_access_equipment_region, get_auth_provider, require_center
 from app.database import get_db
 from app.models.enums import (
     EquipmentCondition,
@@ -34,9 +35,12 @@ def parse_enum(enum_cls, value: str | None):
         return None
 
 
-def form_options(db: Session) -> dict:
+def form_options(db: Session, current_user=None) -> dict:
+    regions = RegionRepository(db).list_active_regions()
+    if current_user and not current_user.is_center:
+        regions = [region for region in regions if region.id == current_user.region_id]
     return {
-        "regions": RegionRepository(db).list_active_regions(),
+        "regions": regions,
         "equipment_types": EquipmentTypeRepository(db).list_active(),
         "conditions": EquipmentCondition,
         "condition_labels": CONDITION_LABELS,
@@ -54,6 +58,8 @@ def equipment_index(
     queue: Annotated[str | None, Query()] = None,
     page: Annotated[int, Query(ge=1)] = 1,
 ) -> HTMLResponse:
+    current_user = get_auth_provider().get_current_user(request, db)
+    require_center(current_user)
     service = EquipmentService(db)
     active_queue = queue if queue in QUEUE_LABELS else ""
     result = service.list_equipment(
@@ -92,13 +98,15 @@ def equipment_new(
     request: Request,
     db: Annotated[Session, Depends(get_db)],
 ) -> HTMLResponse:
+    current_user = get_auth_provider().get_current_user(request, db)
     return templates.TemplateResponse(
         request,
         "equipment/new.html",
         {
-            **form_options(db),
+            **form_options(db, current_user),
             "errors": [],
             "form": {},
+            "current_user": current_user,
         },
     )
 
@@ -136,6 +144,12 @@ async def equipment_create(
     comment: Annotated[str | None, Form()] = None,
     action: Annotated[str, Form()] = "draft",
 ) -> Response:
+    current_user = get_auth_provider().get_current_user(request, db)
+    if not current_user.is_center:
+        if current_user.region_id is None:
+            raise HTTPException(status_code=403, detail="Пользователь не привязан к региону.")
+        region_id = current_user.region_id
+
     form = await request.form()
     attributes = {
         key.removeprefix("attr_"): value
@@ -157,9 +171,10 @@ async def equipment_create(
             request,
             "equipment/new.html",
             {
-                **form_options(db),
+                **form_options(db, current_user),
                 "errors": ["Для нерабочего оборудования приложите минимум одно фото дефекта."],
                 "form": dict(form),
+                "current_user": current_user,
             },
             status_code=400,
         )
@@ -187,9 +202,10 @@ async def equipment_create(
             request,
             "equipment/new.html",
             {
-                **form_options(db),
+                **form_options(db, current_user),
                 "errors": [str(exc)],
                 "form": dict(form),
+                "current_user": current_user,
             },
             status_code=400,
         )
@@ -203,17 +219,21 @@ def equipment_edit(
     request: Request,
     db: Annotated[Session, Depends(get_db)],
 ) -> HTMLResponse:
+    current_user = get_auth_provider().get_current_user(request, db)
     service = EquipmentService(db)
     item = service.get_equipment(equipment_id)
     if item is None:
         raise HTTPException(status_code=404, detail="Equipment not found")
+    if not can_access_equipment_region(current_user, item.region_id):
+        raise HTTPException(status_code=403, detail="Нет доступа к карточке чужого региона.")
 
     return templates.TemplateResponse(
         request,
         "equipment/edit.html",
         {
-            **form_options(db),
+            **form_options(db, current_user),
             "item": item,
+            "current_user": current_user,
             "errors": [],
             "form": edit_form_from_item(item),
         },
@@ -236,10 +256,13 @@ async def equipment_update(
     comment: Annotated[str | None, Form()] = None,
     action: Annotated[str, Form()] = "save",
 ) -> Response:
+    current_user = get_auth_provider().get_current_user(request, db)
     service = EquipmentService(db)
     item = service.get_equipment(equipment_id)
     if item is None:
         raise HTTPException(status_code=404, detail="Equipment not found")
+    if not can_access_equipment_region(current_user, item.region_id):
+        raise HTTPException(status_code=403, detail="Нет доступа к карточке чужого региона.")
 
     form = await request.form()
     attributes = {
@@ -267,8 +290,9 @@ async def equipment_update(
             request,
             "equipment/edit.html",
             {
-                **form_options(db),
+                **form_options(db, current_user),
                 "item": item,
+                "current_user": current_user,
                 "errors": [str(exc)],
                 "form": dict(form),
             },
@@ -341,16 +365,20 @@ def equipment_detail(
     db: Annotated[Session, Depends(get_db)],
     error: Annotated[str | None, Query()] = None,
 ) -> HTMLResponse:
+    current_user = get_auth_provider().get_current_user(request, db)
     service = EquipmentService(db)
     item = service.get_equipment(equipment_id)
     if item is None:
         raise HTTPException(status_code=404, detail="Equipment not found")
+    if not can_access_equipment_region(current_user, item.region_id):
+        raise HTTPException(status_code=403, detail="Нет доступа к карточке чужого региона.")
 
     return templates.TemplateResponse(
         request,
         "equipment/detail.html",
         {
             "item": item,
+            "current_user": current_user,
             "audit_logs": service.list_audit_log(equipment_id),
             "error": error,
             "status_labels": STATUS_LABELS,
@@ -366,11 +394,14 @@ def equipment_detail(
 @router.post("/{equipment_id}/center-action", response_class=HTMLResponse)
 def equipment_center_action(
     equipment_id: int,
+    request: Request,
     db: Annotated[Session, Depends(get_db)],
     action: Annotated[str, Form()],
     row_version: Annotated[int, Form()],
     comment: Annotated[str | None, Form()] = None,
 ) -> Response:
+    current_user = get_auth_provider().get_current_user(request, db)
+    require_center(current_user)
     try:
         item = EquipmentService(db).apply_center_action(
             equipment_id=equipment_id,

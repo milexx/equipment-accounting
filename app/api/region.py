@@ -6,6 +6,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.auth.provider import get_auth_provider
 from app.models.enums import EquipmentStatus
 from app.repositories.region_repository import RegionRepository
 from app.services.equipment_service import EquipmentService
@@ -21,11 +22,15 @@ def region_home(
     region_id: Annotated[int | None, Query()] = None,
     status: Annotated[str | None, Query()] = None,
 ) -> HTMLResponse:
+    current_user = get_auth_provider().get_current_user(request, db)
     region_repository = RegionRepository(db)
     regions = region_repository.list_active_regions()
-    selected_region = region_repository.get(region_id) if region_id else (regions[0] if regions else None)
+    if current_user.is_center:
+        selected_region = region_repository.get(region_id) if region_id else (regions[0] if regions else None)
+    else:
+        selected_region = region_repository.get(current_user.region_id) if current_user.region_id else None
     if selected_region is None or not selected_region.is_active:
-        selected_region = regions[0] if regions else None
+        selected_region = regions[0] if regions and current_user.is_center else None
 
     service = EquipmentService(db)
     parsed_status = parse_region_status(status)
@@ -46,6 +51,8 @@ def region_home(
         {
             "regions": regions,
             "selected_region": selected_region,
+            "current_user": current_user,
+            "can_switch_region": current_user.is_center,
             "status": status or "",
             "result": result,
             "counts": counts,

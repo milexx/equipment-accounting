@@ -41,13 +41,18 @@
             <div class="form-grid-fields">
               <label>
                 Регион
-                <select name="region_id" required>
-                  {% for region in regions %}
-                    <option value="{{ region.id }}" {% if form.get("region_id") == region.id|string %}selected{% endif %}>
-                      {{ region.name }}
-                    </option>
-                  {% endfor %}
-                </select>
+                {% if current_user and not current_user.is_center %}
+                  <input type="hidden" name="region_id" value="{{ regions[0].id if regions else '' }}">
+                  <input value="{{ regions[0].name if regions else '' }}" disabled>
+                {% else %}
+                  <select name="region_id" required>
+                    {% for region in regions %}
+                      <option value="{{ region.id }}" {% if form.get("region_id") == region.id|string %}selected{% endif %}>
+                        {{ region.name }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                {% endif %}
               </label>
               <label>
                 Тип оборудования

@@ -27,33 +27,35 @@
           </div>
           <div class="head-actions">
             <a class="button-link" href="/equipment/{{ item.id }}/edit">Редактировать</a>
-            <form method="post" action="/equipment/{{ item.id }}/center-action" data-submit-once>
-              <input type="hidden" name="row_version" value="{{ item.row_version }}">
-              <input type="hidden" name="action" value="accept">
-              <button type="submit">Принять</button>
-            </form>
-            <form method="post" action="/equipment/{{ item.id }}/center-action" data-submit-once>
-              <input type="hidden" name="row_version" value="{{ item.row_version }}">
-              <input type="hidden" name="action" value="diagnostics">
-              <button type="submit">На диагностику</button>
-            </form>
-            {% if item.condition.value == "broken" %}
+            {% if current_user.is_center %}
               <form method="post" action="/equipment/{{ item.id }}/center-action" data-submit-once>
                 <input type="hidden" name="row_version" value="{{ item.row_version }}">
-                <input type="hidden" name="action" value="writeoff">
-                <button type="submit" class="primary">На списание</button>
-              </form>
-            {% else %}
-              <form method="post" action="/equipment/{{ item.id }}/center-action" data-submit-once>
-                <input type="hidden" name="row_version" value="{{ item.row_version }}">
-                <input type="hidden" name="action" value="valuation">
-                <button type="submit">На оценку</button>
+                <input type="hidden" name="action" value="accept">
+                <button type="submit">Принять</button>
               </form>
               <form method="post" action="/equipment/{{ item.id }}/center-action" data-submit-once>
                 <input type="hidden" name="row_version" value="{{ item.row_version }}">
-                <input type="hidden" name="action" value="sale">
-                <button type="submit" class="primary">К продаже</button>
+                <input type="hidden" name="action" value="diagnostics">
+                <button type="submit">На диагностику</button>
               </form>
+              {% if item.condition.value == "broken" %}
+                <form method="post" action="/equipment/{{ item.id }}/center-action" data-submit-once>
+                  <input type="hidden" name="row_version" value="{{ item.row_version }}">
+                  <input type="hidden" name="action" value="writeoff">
+                  <button type="submit" class="primary">На списание</button>
+                </form>
+              {% else %}
+                <form method="post" action="/equipment/{{ item.id }}/center-action" data-submit-once>
+                  <input type="hidden" name="row_version" value="{{ item.row_version }}">
+                  <input type="hidden" name="action" value="valuation">
+                  <button type="submit">На оценку</button>
+                </form>
+                <form method="post" action="/equipment/{{ item.id }}/center-action" data-submit-once>
+                  <input type="hidden" name="row_version" value="{{ item.row_version }}">
+                  <input type="hidden" name="action" value="sale">
+                  <button type="submit" class="primary">К продаже</button>
+                </form>
+              {% endif %}
             {% endif %}
           </div>
         </div>
@@ -63,15 +65,17 @@
             <div class="form-errors detail-error">{{ error }}</div>
           {% endif %}
 
-          <section class="info-section">
-            <h2>Возврат на доработку</h2>
-            <form method="post" action="/equipment/{{ item.id }}/center-action" class="inline-action-form" data-submit-once>
-              <input type="hidden" name="row_version" value="{{ item.row_version }}">
-              <input type="hidden" name="action" value="revision">
-              <textarea name="comment" placeholder="Что нужно исправить региону"></textarea>
-              <button type="submit">Вернуть на доработку</button>
-            </form>
-          </section>
+          {% if current_user.is_center %}
+            <section class="info-section">
+              <h2>Возврат на доработку</h2>
+              <form method="post" action="/equipment/{{ item.id }}/center-action" class="inline-action-form" data-submit-once>
+                <input type="hidden" name="row_version" value="{{ item.row_version }}">
+                <input type="hidden" name="action" value="revision">
+                <textarea name="comment" placeholder="Что нужно исправить региону"></textarea>
+                <button type="submit">Вернуть на доработку</button>
+              </form>
+            </section>
+          {% endif %}
 
           <section class="info-section">
             <h2>Статус и маршрут</h2>

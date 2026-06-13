@@ -33,18 +33,20 @@
       </div>
 
       {% if selected_region %}
-        <form class="region-switcher" method="get" action="/region">
-          <label>
-            Филиал
-            <select name="region_id" onchange="this.form.submit()">
-              {% for region in regions %}
-                <option value="{{ region.id }}" {% if selected_region.id == region.id %}selected{% endif %}>
-                  {{ region.name }}
-                </option>
-              {% endfor %}
-            </select>
-          </label>
-        </form>
+        {% if can_switch_region %}
+          <form class="region-switcher" method="get" action="/region">
+            <label>
+              Филиал
+              <select name="region_id" onchange="this.form.submit()">
+                {% for region in regions %}
+                  <option value="{{ region.id }}" {% if selected_region.id == region.id %}selected{% endif %}>
+                    {{ region.name }}
+                  </option>
+                {% endfor %}
+              </select>
+            </label>
+          </form>
+        {% endif %}
 
         <div class="region-summary">
           <a class="summary-tile {{ 'active' if not status else '' }}" href="/region?region_id={{ selected_region.id }}">
