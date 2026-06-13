@@ -113,9 +113,10 @@ class AuthProvider:
 
 MVP:
 
+- `DemoAuthProvider`;
 - `DatabaseAuthProvider`;
 - пользователи и токены в PostgreSQL;
-- роли `region` и `center`.
+- роли `region`, `center` и `center_admin`.
 
 Будущее:
 
@@ -129,7 +130,7 @@ MVP:
 AUTH_PROVIDER=database|keycloak
 ```
 
-Критерий готовности к Keycloak: переход должен затронуть конфигурацию, provider и dependency wiring, но не бизнес-сервисы.
+В текущей разработке Keycloak не реализуется. `KeycloakAuthProvider` остаётся заглушкой и должен явно сообщать, что интеграция не подключена. Критерий готовности к Keycloak: будущий переход должен затронуть конфигурацию, provider и dependency wiring, но не бизнес-сервисы.
 
 ## 6. PhotoStorage
 

@@ -18,7 +18,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    user_role = postgresql.ENUM("region", "center", name="user_role")
+    user_role = postgresql.ENUM("region", "center", "center_admin", name="user_role")
     equipment_status = postgresql.ENUM(
         "draft",
         "submitted",
@@ -116,7 +116,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.CheckConstraint(
-            "(role = 'region' AND region_id IS NOT NULL) OR role = 'center'",
+            "(role = 'region' AND region_id IS NOT NULL) OR role IN ('center', 'center_admin')",
             name="chk_region_user_region",
         ),
     )
@@ -316,4 +316,3 @@ def downgrade() -> None:
     postgresql.ENUM(name="equipment_condition").drop(bind, checkfirst=True)
     postgresql.ENUM(name="equipment_status").drop(bind, checkfirst=True)
     postgresql.ENUM(name="user_role").drop(bind, checkfirst=True)
-

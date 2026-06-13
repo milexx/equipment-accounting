@@ -4,6 +4,7 @@ import enum
 class UserRole(str, enum.Enum):
     region = "region"
     center = "center"
+    center_admin = "center_admin"
 
 
 class EquipmentStatus(str, enum.Enum):
@@ -68,4 +69,3 @@ class EquipmentPhotoPurpose(str, enum.Enum):
     defect = "defect"
     completeness = "completeness"
     other = "other"
-

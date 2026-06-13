@@ -14,7 +14,7 @@
 ## 2. Типы Enum
 
 ```sql
-CREATE TYPE user_role AS ENUM ('region', 'center');
+CREATE TYPE user_role AS ENUM ('region', 'center', 'center_admin');
 
 CREATE TYPE equipment_status AS ENUM (
     'draft',
@@ -109,7 +109,7 @@ CREATE TABLE users (
     CONSTRAINT chk_region_user_region
         CHECK (
             (role = 'region' AND region_id IS NOT NULL)
-            OR (role = 'center')
+            OR (role IN ('center', 'center_admin'))
         )
 );
 

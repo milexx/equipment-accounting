@@ -11,7 +11,7 @@ class User(Base):
     __tablename__ = "users"
     __table_args__ = (
         CheckConstraint(
-            "(role = 'region' AND region_id IS NOT NULL) OR role = 'center'",
+            "(role = 'region' AND region_id IS NOT NULL) OR role IN ('center', 'center_admin')",
             name="chk_region_user_region",
         ),
     )
@@ -28,4 +28,3 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     region = relationship("Region", back_populates="users")
-

@@ -23,7 +23,7 @@
 
 В MVP не входит:
 
-- Keycloak, но архитектура должна быть готова к подключению;
+- Keycloak, но архитектура должна быть готова к подключению через заглушку `AuthProvider`;
 - S3, но архитектура должна быть готова к переносу фото;
 - импорт Excel;
 - сложная аналитика;
@@ -246,17 +246,20 @@ class AuthProvider:
 
 MVP-реализация:
 
+- `DemoAuthProvider`;
 - `DatabaseAuthProvider`.
 
 Будущая реализация:
 
-- `KeycloakAuthProvider`.
+- `KeycloakAuthProvider`, пока только заглушка без интеграции.
 
 Переключение:
 
 ```text
 AUTH_PROVIDER=database|keycloak
 ```
+
+Учётками регионов в MVP управляет центр. Для этого в модели ролей предусмотрена роль `center_admin`.
 
 ### S3
 
