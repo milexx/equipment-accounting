@@ -56,7 +56,7 @@
               </label>
               <label>
                 Тип оборудования
-                <select name="equipment_type_id" required>
+                <select name="equipment_type_id" required data-equipment-type-select>
                   {% for equipment_type in equipment_types %}
                     <option value="{{ equipment_type.id }}" {% if form.get("equipment_type_id") == equipment_type.id|string %}selected{% endif %}>
                       {{ equipment_type.name }}
@@ -118,7 +118,7 @@
           <section class="info-section">
             <h2>4. Поля типа</h2>
             {% for equipment_type in equipment_types %}
-              <div class="type-fieldset">
+              <div class="type-fieldset" data-type-fieldset data-equipment-type-id="{{ equipment_type.id }}">
                 <h3>{{ equipment_type.name }}</h3>
                 <div class="form-grid-fields">
                   {% for field in equipment_type.fields|sort(attribute="display_order") %}
@@ -145,7 +145,7 @@
                 </div>
               </div>
             {% endfor %}
-            <p class="muted">На следующем шаге сделаем показ только полей выбранного типа через HTMX.</p>
+            <p class="muted">Показываются только поля выбранного типа оборудования.</p>
           </section>
 
           <section class="info-section">
@@ -199,5 +199,25 @@
       });
     });
   });
+
+  const equipmentTypeSelect = document.querySelector("[data-equipment-type-select]");
+  const typeFieldsets = document.querySelectorAll("[data-type-fieldset]");
+
+  function syncTypeFields() {
+    if (!equipmentTypeSelect) {
+      return;
+    }
+    const selectedTypeId = equipmentTypeSelect.value;
+    typeFieldsets.forEach((fieldset) => {
+      const isSelected = fieldset.dataset.equipmentTypeId === selectedTypeId;
+      fieldset.hidden = !isSelected;
+      fieldset.querySelectorAll("input, select, textarea").forEach((input) => {
+        input.disabled = !isSelected;
+      });
+    });
+  }
+
+  equipmentTypeSelect?.addEventListener("change", syncTypeFields);
+  syncTypeFields();
 </script>
 </html>

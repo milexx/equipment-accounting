@@ -622,6 +622,10 @@ textarea {
   margin-bottom: 12px;
 }
 
+.type-fieldset[hidden] {
+  display: none;
+}
+
 .type-fieldset h3 {
   margin: 0 0 12px;
   font-size: 15px;
