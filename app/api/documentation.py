@@ -22,6 +22,11 @@ DOCUMENTS = {
         "description": "Границы MVP, Definition of Done, текущие статусы и очередь работ.",
         "path": DOCS_ROOT / "05_mvp_plan.md",
     },
+    "operator-admin-guide": {
+        "title": "Инструкция оператора и администратора",
+        "description": "Краткая инструкция по работе региона, центра и администратора.",
+        "path": DOCS_ROOT / "12_operator_admin_guide.md",
+    },
 }
 
 
