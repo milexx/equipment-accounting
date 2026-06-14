@@ -23,8 +23,6 @@
         </div>
         <div class="head-actions">
           <a class="button-link primary-link" href="/equipment/new">Добавить оборудование</a>
-          <button type="button">Колонки</button>
-          <button type="button">Массовые действия</button>
           <a class="button-link primary-link" href="/equipment/export.csv?{{ request.url.query }}">Экспорт CSV</a>
         </div>
       </div>
@@ -33,89 +31,102 @@
         {% if queue %}
           <input type="hidden" name="queue" value="{{ queue }}">
         {% endif %}
-        <label class="filter-field filter-field-wide">
-          Поиск
-          <input name="q" value="{{ q }}" placeholder="Название, инвентарный или серийный номер">
-        </label>
-        <label class="filter-field">
-          Регион
-          <select name="region_id">
-            <option value="">Все регионы</option>
-            {% for region in regions %}
-              <option value="{{ region.id }}" {% if region_id == region.id %}selected{% endif %}>
-                {{ region.name }}
-              </option>
-            {% endfor %}
-          </select>
-        </label>
-        <label class="filter-field">
-          Тип
-          <select name="equipment_type_id">
-            <option value="">Все типы</option>
-            {% for equipment_type in equipment_types %}
-              <option value="{{ equipment_type.id }}" {% if equipment_type_id == equipment_type.id %}selected{% endif %}>
-                {{ equipment_type.name }}
-              </option>
-            {% endfor %}
-          </select>
-        </label>
-        <label class="filter-field">
-          Местонахождение
-          <input name="location" value="{{ location }}" placeholder="Склад, кабинет, стойка">
-        </label>
-        <label class="filter-field">
-          Статус
-          <select name="status">
-            <option value="">Все статусы</option>
-            {% for item in statuses %}
-              <option value="{{ item.value }}" {% if status == item.value %}selected{% endif %}>
-                {{ status_labels[item.value] }}
-              </option>
-            {% endfor %}
-          </select>
-        </label>
-        <label class="filter-field">
-          Состояние
-          <select name="condition">
-            <option value="">Все состояния</option>
-            {% for item in conditions %}
-              <option value="{{ item.value }}" {% if condition == item.value %}selected{% endif %}>
-                {{ condition_labels[item.value] }}
-              </option>
-            {% endfor %}
-          </select>
-        </label>
-        <label class="filter-field">
-          Маршрут
-          <select name="disposition">
-            <option value="">Все маршруты</option>
-            {% for item in dispositions %}
-              <option value="{{ item.value }}" {% if disposition == item.value %}selected{% endif %}>
-                {{ disposition_labels[item.value] }}
-              </option>
-            {% endfor %}
-          </select>
-        </label>
-        <label class="filter-field">
-          Статус продажи
-          <select name="sale_status">
-            <option value="">Все статусы продажи</option>
-            {% for item in sale_statuses %}
-              <option value="{{ item.value }}" {% if sale_status == item.value %}selected{% endif %}>
-                {{ sale_status_labels[item.value] }}
-              </option>
-            {% endfor %}
-          </select>
-        </label>
-        {% for field in filterable_fields %}
+        <div class="filter-row filter-row-main">
           <label class="filter-field">
-            {{ field.name }}
-            <input name="attr_{{ field.code }}" value="{{ attribute_filters.get(field.code, '') }}" placeholder="Фильтр по полю">
+            Поиск
+            <input name="q" value="{{ q }}" placeholder="Название, инвентарный или серийный номер">
           </label>
-        {% endfor %}
-        <div class="filter-actions">
-          <button type="submit" class="primary">Применить</button>
+          <label class="filter-field">
+            Местонахождение
+            <input name="location" value="{{ location }}" placeholder="Склад, кабинет, стойка">
+          </label>
+          <div class="filter-actions">
+            <button type="submit" class="primary">Применить</button>
+          </div>
         </div>
+
+        <div class="filter-row filter-row-taxonomy">
+          <label class="filter-field">
+            Регион
+            <select name="region_id">
+              <option value="">Все регионы</option>
+              {% for region in regions %}
+                <option value="{{ region.id }}" {% if region_id == region.id %}selected{% endif %}>
+                  {{ region.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="filter-field">
+            Тип
+            <select name="equipment_type_id">
+              <option value="">Все типы</option>
+              {% for equipment_type in equipment_types %}
+                <option value="{{ equipment_type.id }}" {% if equipment_type_id == equipment_type.id %}selected{% endif %}>
+                  {{ equipment_type.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </label>
+        </div>
+
+        <div class="filter-row filter-row-process">
+          <label class="filter-field">
+            Статус
+            <select name="status">
+              <option value="">Все статусы</option>
+              {% for item in statuses %}
+                <option value="{{ item.value }}" {% if status == item.value %}selected{% endif %}>
+                  {{ status_labels[item.value] }}
+                </option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="filter-field">
+            Состояние
+            <select name="condition">
+              <option value="">Все состояния</option>
+              {% for item in conditions %}
+                <option value="{{ item.value }}" {% if condition == item.value %}selected{% endif %}>
+                  {{ condition_labels[item.value] }}
+                </option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="filter-field">
+            Маршрут
+            <select name="disposition">
+              <option value="">Все маршруты</option>
+              {% for item in dispositions %}
+                <option value="{{ item.value }}" {% if disposition == item.value %}selected{% endif %}>
+                  {{ disposition_labels[item.value] }}
+                </option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="filter-field">
+            Статус продажи
+            <select name="sale_status">
+              <option value="">Все статусы продажи</option>
+              {% for item in sale_statuses %}
+                <option value="{{ item.value }}" {% if sale_status == item.value %}selected{% endif %}>
+                  {{ sale_status_labels[item.value] }}
+                </option>
+              {% endfor %}
+            </select>
+          </label>
+        </div>
+
+        {% if filterable_fields %}
+          <div class="filter-row filter-row-attributes">
+            {% for field in filterable_fields %}
+              <label class="filter-field">
+                {{ field.name }}
+                <input name="attr_{{ field.code }}" value="{{ attribute_filters.get(field.code, '') }}" placeholder="Фильтр по полю">
+              </label>
+            {% endfor %}
+          </div>
+        {% endif %}
       </form>
 
       <div class="view-tabs">

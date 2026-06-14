@@ -368,20 +368,34 @@ button:disabled {
 
 .filters {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
   padding: 16px 20px;
   border-bottom: 1px solid #d9dee7;
   background: #fbfcfe;
+}
+
+.filter-row {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
   align-items: end;
+}
+
+.filter-row-main {
+  grid-template-columns: minmax(280px, 2fr) minmax(220px, 1fr) 160px;
+}
+
+.filter-row-taxonomy {
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+}
+
+.filter-row-process,
+.filter-row-attributes {
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
 }
 
 .filter-field {
   min-width: 0;
-}
-
-.filter-field-wide {
-  grid-column: span 2;
 }
 
 .filter-actions {
@@ -944,11 +958,21 @@ textarea {
   }
 
   .filters {
+    gap: 12px;
+  }
+
+  .filter-row-main {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .filter-field-wide {
-    grid-column: span 2;
+  .filter-actions {
+    grid-column: 1 / -1;
+  }
+
+  .filter-row-taxonomy,
+  .filter-row-process,
+  .filter-row-attributes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .form-grid-fields {
@@ -974,11 +998,11 @@ textarea {
     padding: 12px;
   }
 
-  .filters {
+  .filter-row,
+  .filter-row-main,
+  .filter-row-taxonomy,
+  .filter-row-process,
+  .filter-row-attributes {
     grid-template-columns: 1fr;
-  }
-
-  .filter-field-wide {
-    grid-column: span 1;
   }
 }
