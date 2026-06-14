@@ -18,11 +18,6 @@
     </p>
     <div class="actions">
       <a href="/login">Войти</a>
-      {% if current_user.is_center %}
-        <a href="/equipment">Открыть реестр центра</a>
-      {% else %}
-        <a href="/region">Рабочее место филиала</a>
-      {% endif %}
       <a href="/documentation">Документация</a>
       <a href="/health">Проверить backend</a>
     </div>

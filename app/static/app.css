@@ -162,11 +162,88 @@ p {
 .documentation-content {
   margin: 0;
   padding: 20px;
-  overflow-x: auto;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
   color: #1f2933;
-  font: 14px/1.55 Arial, Helvetica, sans-serif;
+  font-size: 15px;
+  line-height: 1.62;
+}
+
+.documentation-content h1,
+.documentation-content h2,
+.documentation-content h3,
+.documentation-content h4 {
+  margin: 24px 0 10px;
+  letter-spacing: 0;
+}
+
+.documentation-content h1:first-child,
+.documentation-content h2:first-child {
+  margin-top: 0;
+}
+
+.documentation-content h1 {
+  font-size: 26px;
+}
+
+.documentation-content h2 {
+  font-size: 21px;
+}
+
+.documentation-content h3 {
+  font-size: 17px;
+}
+
+.documentation-content p {
+  margin: 0 0 12px;
+  color: #344054;
+  font-size: 15px;
+}
+
+.documentation-content ul,
+.documentation-content ol {
+  margin: 0 0 14px;
+  padding-left: 24px;
+}
+
+.documentation-content li {
+  margin: 5px 0;
+}
+
+.documentation-content code {
+  border: 1px solid #d9dee7;
+  border-radius: 4px;
+  padding: 1px 5px;
+  background: #f8fafc;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 0.95em;
+}
+
+.documentation-content pre {
+  margin: 14px 0;
+  overflow-x: auto;
+  border: 1px solid #d9dee7;
+  border-radius: 8px;
+  padding: 14px;
+  background: #f8fafc;
+}
+
+.documentation-content pre code {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.markdown-table-wrap {
+  overflow-x: auto;
+  margin: 14px 0;
+}
+
+.markdown-table {
+  min-width: 720px;
+}
+
+.markdown-table td {
+  white-space: normal;
+  vertical-align: top;
 }
 
 a {
