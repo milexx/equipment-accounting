@@ -1,3 +1,9 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
   background: #f6f7f9;
@@ -362,16 +368,30 @@ button:disabled {
 
 .filters {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
   padding: 16px 20px;
   border-bottom: 1px solid #d9dee7;
   background: #fbfcfe;
   align-items: end;
 }
 
-.filters button {
-  align-self: end;
+.filter-field {
+  min-width: 0;
+}
+
+.filter-field-wide {
+  grid-column: span 2;
+}
+
+.filter-actions {
+  display: flex;
+  align-items: end;
+  min-width: 0;
+}
+
+.filter-actions button {
+  width: 100%;
 }
 
 label {
@@ -382,6 +402,7 @@ label {
 input,
 select {
   width: 100%;
+  max-width: 100%;
   margin-top: 6px;
   min-height: 38px;
   border: 1px solid #cfd6e0;
@@ -923,7 +944,11 @@ textarea {
   }
 
   .filters {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .filter-field-wide {
+    grid-column: span 2;
   }
 
   .form-grid-fields {
@@ -951,5 +976,9 @@ textarea {
 
   .filters {
     grid-template-columns: 1fr;
+  }
+
+  .filter-field-wide {
+    grid-column: span 1;
   }
 }
