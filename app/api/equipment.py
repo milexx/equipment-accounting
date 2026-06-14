@@ -42,6 +42,15 @@ def parse_enum(enum_cls, value: str | None):
         return None
 
 
+def parse_optional_int(value: str | None) -> int | None:
+    if value is None or not value.strip():
+        return None
+    try:
+        return int(value)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Некорректное числовое значение фильтра.") from exc
+
+
 def form_options(db: Session, current_user=None) -> dict:
     regions = RegionRepository(db).list_active_regions()
     if current_user and not current_user.is_center:
@@ -59,8 +68,8 @@ def equipment_index(
     request: Request,
     db: Annotated[Session, Depends(get_db)],
     q: Annotated[str | None, Query()] = None,
-    region_id: Annotated[int | None, Query()] = None,
-    equipment_type_id: Annotated[int | None, Query()] = None,
+    raw_region_id: Annotated[str | None, Query(alias="region_id")] = None,
+    raw_equipment_type_id: Annotated[str | None, Query(alias="equipment_type_id")] = None,
     location: Annotated[str | None, Query()] = None,
     status: Annotated[str | None, Query()] = None,
     condition: Annotated[str | None, Query()] = None,
@@ -73,6 +82,8 @@ def equipment_index(
     require_center(current_user)
     service = EquipmentService(db)
     active_queue = queue if queue in QUEUE_LABELS else ""
+    region_id = parse_optional_int(raw_region_id)
+    equipment_type_id = parse_optional_int(raw_equipment_type_id)
     attribute_filters = collect_attribute_filters(request)
     result = service.list_equipment(
         region_id=region_id,
@@ -126,8 +137,8 @@ def equipment_export_csv(
     request: Request,
     db: Annotated[Session, Depends(get_db)],
     q: Annotated[str | None, Query()] = None,
-    region_id: Annotated[int | None, Query()] = None,
-    equipment_type_id: Annotated[int | None, Query()] = None,
+    raw_region_id: Annotated[str | None, Query(alias="region_id")] = None,
+    raw_equipment_type_id: Annotated[str | None, Query(alias="equipment_type_id")] = None,
     location: Annotated[str | None, Query()] = None,
     status: Annotated[str | None, Query()] = None,
     condition: Annotated[str | None, Query()] = None,
@@ -138,6 +149,8 @@ def equipment_export_csv(
     current_user = get_auth_provider().get_current_user(request, db)
     require_center(current_user)
     active_queue = queue if queue in QUEUE_LABELS else ""
+    region_id = parse_optional_int(raw_region_id)
+    equipment_type_id = parse_optional_int(raw_equipment_type_id)
     items = EquipmentService(db).export_equipment(
         region_id=region_id,
         equipment_type_id=equipment_type_id,
