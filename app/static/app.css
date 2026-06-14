@@ -126,6 +126,38 @@ p {
   flex-wrap: wrap;
 }
 
+.admin-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  padding: 20px;
+}
+
+.admin-panel {
+  margin-top: 18px;
+}
+
+.admin-form {
+  display: grid;
+  gap: 12px;
+}
+
+.checkbox-field {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.checkbox-field input {
+  width: auto;
+  min-height: 0;
+  margin: 0;
+}
+
+.checkbox-field.compact {
+  min-width: 72px;
+}
+
 .documentation-panel {
   max-width: 1040px;
   margin: 0 auto;

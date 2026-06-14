@@ -89,6 +89,9 @@ def main() -> None:
         region_31 = get_or_create_region(db, "R31", "Регион 31")
 
         center_user = get_or_create_user(db, "center", "Пользователь центра", UserRole.center)
+        center_admin = get_or_create_user(
+            db, "admin", "Администратор центра", UserRole.center_admin
+        )
         region_24_user = get_or_create_user(
             db, "region24", "Оператор региона 24", UserRole.region, region_24
         )
@@ -194,7 +197,7 @@ def main() -> None:
         )
 
         # Kept to make explicit that center user exists for future workflow ownership.
-        _ = center_region, center_user
+        _ = center_region, center_user, center_admin
         db.commit()
 
 

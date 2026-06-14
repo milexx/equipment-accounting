@@ -5,6 +5,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from app.api.admin import router as admin_router
 from app.api.auth import router as auth_router
 from app.api.documentation import router as documentation_router
 from app.api.equipment import router as equipment_router
@@ -23,6 +24,7 @@ templates = Jinja2Templates(directory="app/templates")
 
 app.include_router(health_router)
 app.include_router(auth_router)
+app.include_router(admin_router)
 app.include_router(documentation_router)
 app.include_router(equipment_router)
 app.include_router(region_router)

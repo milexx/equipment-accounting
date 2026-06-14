@@ -38,6 +38,8 @@ def login(
     redirect_to = "/"
     if user and user.role.value == "region":
         redirect_to = "/region"
+    elif user and user.role.value == "center_admin":
+        redirect_to = "/admin"
     elif user:
         redirect_to = "/equipment"
 

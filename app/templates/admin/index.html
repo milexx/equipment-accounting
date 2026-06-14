@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Администрирование</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Учёт оборудования</div>
+    <nav>
+      <a href="/">Главная</a>
+      <a href="/equipment">Реестр</a>
+      <a href="/admin" class="active">Администрирование</a>
+      <a href="/documentation">Документация</a>
+    </nav>
+  </header>
+
+  <main class="workbench">
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="breadcrumbs"><a href="/">Главная</a> / администрирование</div>
+          <h1>Пользователи и регионы</h1>
+          <p>Раздел доступен только роли администратора центра.</p>
+        </div>
+      </div>
+
+      {% if error %}
+        <div class="form-errors">{{ error }}</div>
+      {% endif %}
+
+      <div class="admin-layout">
+        <section class="info-section">
+          <h2>Создать пользователя</h2>
+          <form method="post" action="/admin/users" class="admin-form" data-role-form>
+            <label>
+              Логин
+              <input name="login" placeholder="region77" required>
+            </label>
+            <label>
+              Имя
+              <input name="display_name" placeholder="Оператор региона 77" required>
+            </label>
+            <label>
+              Роль
+              <select name="role" required data-role-select>
+                {% for role in roles %}
+                  <option value="{{ role.value }}">{{ role_labels[role.value] }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label data-region-wrapper>
+              Регион
+              <select name="region_id" data-region-field>
+                <option value="">Не выбран</option>
+                {% for region in regions %}
+                  {% if region.code != "CENTER" %}
+                    <option value="{{ region.id }}">{{ region.name }}</option>
+                  {% endif %}
+                {% endfor %}
+              </select>
+            </label>
+            <label class="checkbox-field">
+              <input name="is_active" type="checkbox" checked>
+              Активен
+            </label>
+            <button type="submit" class="primary">Создать пользователя</button>
+          </form>
+        </section>
+
+        <section class="info-section">
+          <h2>Создать регион</h2>
+          <form method="post" action="/admin/regions" class="admin-form">
+            <label>
+              Код
+              <input name="code" placeholder="R77" required>
+            </label>
+            <label>
+              Название
+              <input name="name" placeholder="Регион 77" required>
+            </label>
+            <label class="checkbox-field">
+              <input name="is_active" type="checkbox" checked>
+              Активен
+            </label>
+            <button type="submit" class="primary">Создать регион</button>
+          </form>
+        </section>
+      </div>
+    </section>
+
+    <section class="panel admin-panel">
+      <div class="panel-head">
+        <div>
+          <h2>Пользователи</h2>
+          <p>Региональные пользователи должны быть привязаны к региону.</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Логин</th>
+              <th>Имя</th>
+              <th>Роль</th>
+              <th>Регион</th>
+              <th>Активен</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for user in users %}
+              <tr data-role-form>
+                <td>
+                  <form id="user-form-{{ user.id }}" method="post" action="/admin/users/{{ user.id }}"></form>
+                  {{ user.id }}
+                </td>
+                <td><input form="user-form-{{ user.id }}" name="login" value="{{ user.login }}" required></td>
+                <td><input form="user-form-{{ user.id }}" name="display_name" value="{{ user.display_name }}" required></td>
+                  <td>
+                    <select form="user-form-{{ user.id }}" name="role" required data-role-select>
+                      {% for role in roles %}
+                        <option value="{{ role.value }}" {% if user.role.value == role.value %}selected{% endif %}>
+                          {{ role_labels[role.value] }}
+                        </option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                  <td>
+                    <select form="user-form-{{ user.id }}" name="region_id" data-region-field>
+                      <option value="">Не выбран</option>
+                      {% for region in regions %}
+                        {% if region.code != "CENTER" %}
+                          <option value="{{ region.id }}" {% if user.region_id == region.id %}selected{% endif %}>
+                            {{ region.name }}
+                          </option>
+                        {% endif %}
+                      {% endfor %}
+                    </select>
+                  </td>
+                  <td>
+                    <label class="checkbox-field compact">
+                      <input form="user-form-{{ user.id }}" name="is_active" type="checkbox" {% if user.is_active %}checked{% endif %}>
+                      Да
+                    </label>
+                  </td>
+                  <td><button form="user-form-{{ user.id }}" type="submit">Сохранить</button></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel admin-panel">
+      <div class="panel-head">
+        <div>
+          <h2>Регионы</h2>
+          <p>Выключенный регион нельзя выбрать в формах создания оборудования.</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Код</th>
+              <th>Название</th>
+              <th>Активен</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for region in regions %}
+              <tr>
+                <td>
+                  <form id="region-form-{{ region.id }}" method="post" action="/admin/regions/{{ region.id }}"></form>
+                  {{ region.id }}
+                </td>
+                <td><input form="region-form-{{ region.id }}" name="code" value="{{ region.code }}" required></td>
+                <td><input form="region-form-{{ region.id }}" name="name" value="{{ region.name }}" required></td>
+                  <td>
+                    <label class="checkbox-field compact">
+                      <input form="region-form-{{ region.id }}" name="is_active" type="checkbox" {% if region.is_active %}checked{% endif %}>
+                      Да
+                    </label>
+                  </td>
+                  <td><button form="region-form-{{ region.id }}" type="submit">Сохранить</button></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</body>
+<script>
+  document.querySelectorAll("[data-role-form]").forEach((form) => {
+    const roleSelect = form.querySelector("[data-role-select]");
+    const regionField = form.querySelector("[data-region-field]");
+    const regionWrapper = form.querySelector("[data-region-wrapper]");
+
+    function syncRegionField() {
+      if (!roleSelect || !regionField) {
+        return;
+      }
+      const isRegionUser = roleSelect.value === "region";
+      regionField.disabled = !isRegionUser;
+      regionWrapper?.toggleAttribute("hidden", !isRegionUser);
+    }
+
+    roleSelect?.addEventListener("change", syncRegionField);
+    syncRegionField();
+  });
+</script>
+</html>
