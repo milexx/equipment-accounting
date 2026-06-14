@@ -1,4 +1,5 @@
 from datetime import timedelta
+from decimal import Decimal, InvalidOperation
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -261,6 +262,59 @@ class EquipmentService:
         self.db.refresh(equipment)
         return equipment
 
+    def apply_business_action(
+        self,
+        *,
+        equipment_id: int,
+        action: str,
+        expected_row_version: int,
+        valuation_amount: str | None = None,
+        sale_price: str | None = None,
+        sale_description: str | None = None,
+        is_public_listing: bool = False,
+        comment: str | None = None,
+    ) -> Equipment:
+        stmt = (
+            select(Equipment)
+            .where(Equipment.id == equipment_id, Equipment.deleted_at.is_(None))
+            .with_for_update()
+        )
+        equipment = self.db.scalar(stmt)
+        if equipment is None:
+            raise ValueError("Карточка не найдена.")
+        if equipment.row_version != expected_row_version:
+            raise ValueError("Карточку уже изменили. Обновите страницу и повторите действие.")
+        if equipment.status == EquipmentStatus.deleted:
+            raise ValueError("Удалённую карточку нельзя изменить.")
+
+        old_data = self._audit_snapshot(equipment) | self._audit_sale_snapshot(equipment)
+        self._apply_business_transition(
+            equipment,
+            action,
+            valuation_amount=valuation_amount,
+            sale_price=sale_price,
+            sale_description=sale_description,
+            is_public_listing=is_public_listing,
+        )
+        equipment.row_version += 1
+        equipment.updated_at = func.now()
+
+        self.audit_repository.add(
+            EquipmentAuditLog(
+                equipment_id=equipment.id,
+                action=f"business.{action}",
+                old_data=old_data,
+                new_data=(
+                    self._audit_snapshot(equipment)
+                    | self._audit_sale_snapshot(equipment)
+                    | {"comment": (comment or "").strip()}
+                ),
+            )
+        )
+        self.db.commit()
+        self.db.refresh(equipment)
+        return equipment
+
     def _apply_transition(self, equipment: Equipment, action: str, comment: str | None) -> None:
         if equipment.status == EquipmentStatus.deleted:
             raise ValueError("Удалённую карточку нельзя изменить.")
@@ -321,6 +375,108 @@ class EquipmentService:
 
         raise ValueError("Неизвестное действие центра.")
 
+    def _apply_business_transition(
+        self,
+        equipment: Equipment,
+        action: str,
+        *,
+        valuation_amount: str | None,
+        sale_price: str | None,
+        sale_description: str | None,
+        is_public_listing: bool,
+    ) -> None:
+        if action == "valuation_save":
+            if equipment.status not in {
+                EquipmentStatus.valuation_pending,
+                EquipmentStatus.valued,
+                EquipmentStatus.sale_ready,
+            }:
+                raise ValueError("Оценку можно сохранить только для оборудования на маршруте оценки.")
+            if equipment.condition == EquipmentCondition.broken:
+                raise ValueError("Нерабочее оборудование нельзя оценивать для продажи.")
+            equipment.valuation_amount = parse_money(valuation_amount, "оценочную стоимость")
+            equipment.sale_price = parse_money(sale_price, "цену продажи")
+            equipment.sale_description = (sale_description or "").strip() or None
+            equipment.disposition = EquipmentDisposition.valuation
+            equipment.sale_status = EquipmentSaleStatus.priced
+            equipment.status = EquipmentStatus.valued
+            return
+
+        if action == "sale_ready":
+            if equipment.status not in {EquipmentStatus.valued, EquipmentStatus.sale_ready}:
+                raise ValueError("К продаже можно готовить только оценённое оборудование.")
+            if not equipment.sale_price:
+                raise ValueError("Для подготовки к продаже укажите цену продажи.")
+            if not (equipment.sale_description or "").strip():
+                raise ValueError("Для подготовки к продаже заполните описание.")
+            equipment.status = EquipmentStatus.sale_ready
+            equipment.disposition = EquipmentDisposition.sale
+            equipment.sale_status = EquipmentSaleStatus.ready
+            return
+
+        if action == "list_for_sale":
+            if equipment.status != EquipmentStatus.sale_ready:
+                raise ValueError("Опубликовать можно только оборудование, готовое к продаже.")
+            if not equipment.sale_price:
+                raise ValueError("Для публикации укажите цену продажи.")
+            if not (equipment.sale_description or "").strip():
+                raise ValueError("Для публикации заполните описание.")
+            equipment.status = EquipmentStatus.listed_for_sale
+            equipment.disposition = EquipmentDisposition.sale
+            equipment.sale_status = EquipmentSaleStatus.listed
+            equipment.is_public_listing = is_public_listing
+            return
+
+        if action == "sold":
+            if equipment.status not in {EquipmentStatus.sale_ready, EquipmentStatus.listed_for_sale}:
+                raise ValueError("Продать можно только готовое или опубликованное оборудование.")
+            if not equipment.sale_price:
+                raise ValueError("Для продажи укажите цену продажи.")
+            equipment.status = EquipmentStatus.sold
+            equipment.disposition = EquipmentDisposition.sale
+            equipment.sale_status = EquipmentSaleStatus.sold
+            equipment.is_public_listing = False
+            return
+
+        if action == "writeoff_approve":
+            if equipment.status != EquipmentStatus.writeoff_review:
+                raise ValueError("Согласовать списание можно только из статуса подготовки к списанию.")
+            if equipment.condition != EquipmentCondition.broken:
+                raise ValueError("Списание согласуется только для нерабочего оборудования.")
+            if not (equipment.defect_description or "").strip():
+                raise ValueError("Для списания нужно описание поломки.")
+            equipment.status = EquipmentStatus.writeoff_approved
+            equipment.disposition = EquipmentDisposition.writeoff
+            return
+
+        if action == "disposal_pending":
+            if equipment.status != EquipmentStatus.writeoff_approved:
+                raise ValueError("К утилизации можно отправить только после согласования списания.")
+            equipment.status = EquipmentStatus.disposal_pending
+            equipment.disposition = EquipmentDisposition.disposal
+            return
+
+        if action == "disposed":
+            if equipment.status != EquipmentStatus.disposal_pending:
+                raise ValueError("Утилизировать можно только оборудование, ожидающее утилизации.")
+            equipment.status = EquipmentStatus.disposed
+            equipment.disposition = EquipmentDisposition.disposal
+            return
+
+        if action == "archive":
+            if equipment.status in {EquipmentStatus.deleted, EquipmentStatus.archived}:
+                raise ValueError("Эту карточку нельзя архивировать.")
+            equipment.status = EquipmentStatus.archived
+            equipment.archived_at = func.now()
+            return
+
+        if action == "delete":
+            equipment.status = EquipmentStatus.deleted
+            equipment.deleted_at = func.now()
+            return
+
+        raise ValueError("Неизвестное действие маршрута.")
+
     def _audit_snapshot(self, equipment: Equipment) -> dict:
         return {
             "status": equipment.status.value,
@@ -329,6 +485,16 @@ class EquipmentService:
             "sale_status": equipment.sale_status.value,
             "revision_comment": equipment.revision_comment,
             "row_version": equipment.row_version,
+        }
+
+    def _audit_sale_snapshot(self, equipment: Equipment) -> dict:
+        return {
+            "valuation_amount": str(equipment.valuation_amount) if equipment.valuation_amount else None,
+            "sale_price": str(equipment.sale_price) if equipment.sale_price else None,
+            "sale_description": equipment.sale_description,
+            "is_public_listing": equipment.is_public_listing,
+            "archived_at": equipment.archived_at.isoformat() if equipment.archived_at else None,
+            "deleted_at": equipment.deleted_at.isoformat() if equipment.deleted_at else None,
         }
 
     def _audit_edit_snapshot(self, equipment: Equipment) -> dict:
@@ -370,3 +536,16 @@ class EquipmentService:
         if field_type == EquipmentFieldType.boolean:
             return raw_value in ("1", "true", "yes", "on", True)
         return raw_value
+
+
+def parse_money(raw_value: str | None, field_name: str) -> Decimal | None:
+    value = (raw_value or "").strip().replace(",", ".")
+    if not value:
+        return None
+    try:
+        parsed = Decimal(value)
+    except InvalidOperation as exc:
+        raise ValueError(f"Некорректное значение поля: {field_name}.") from exc
+    if parsed < 0:
+        raise ValueError(f"Поле {field_name} не может быть отрицательным.")
+    return parsed

@@ -851,6 +851,17 @@ textarea {
   gap: 10px;
 }
 
+.split-actions {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  margin-top: 12px;
+}
+
+.business-form {
+  display: grid;
+  gap: 12px;
+}
+
 .form-errors {
   margin: 20px 20px 0;
   border: 1px solid #fed7d2;

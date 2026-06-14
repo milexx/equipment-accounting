@@ -136,6 +136,70 @@
             </section>
           {% endif %}
 
+          {% if current_user.is_center %}
+            {% if item.status.value in ["valuation_pending", "valued", "sale_ready", "listed_for_sale"] %}
+              <section class="info-section sale-section">
+                <h2>Управление оценкой и продажей</h2>
+                <form method="post" action="/equipment/{{ item.id }}/business-action" class="business-form" data-submit-once>
+                  <input type="hidden" name="row_version" value="{{ item.row_version }}">
+                  <div class="form-grid-fields">
+                    <label>
+                      Оценочная стоимость
+                      <input name="valuation_amount" type="number" min="0" step="0.01" value="{{ item.valuation_amount or '' }}">
+                    </label>
+                    <label>
+                      Цена продажи
+                      <input name="sale_price" type="number" min="0" step="0.01" value="{{ item.sale_price or '' }}">
+                    </label>
+                    <label class="full-field">
+                      Описание для продажи
+                      <textarea name="sale_description">{{ item.sale_description or '' }}</textarea>
+                    </label>
+                    <label class="checkbox-field full-field">
+                      <input name="is_public_listing" type="checkbox" {% if item.is_public_listing %}checked{% endif %}>
+                      Опубликовано в витрине
+                    </label>
+                  </div>
+                  <div class="form-actions split-actions">
+                    <button type="submit" name="action" value="valuation_save">Сохранить оценку</button>
+                    <button type="submit" name="action" value="sale_ready">Готово к продаже</button>
+                    <button type="submit" name="action" value="list_for_sale">Опубликовать</button>
+                    <button type="submit" name="action" value="sold" class="primary">Продано</button>
+                  </div>
+                </form>
+              </section>
+            {% endif %}
+
+            {% if item.status.value in ["writeoff_review", "writeoff_approved", "disposal_pending"] %}
+              <section class="info-section warning-section">
+                <h2>Списание и утилизация</h2>
+                <form method="post" action="/equipment/{{ item.id }}/business-action" class="business-form" data-submit-once>
+                  <input type="hidden" name="row_version" value="{{ item.row_version }}">
+                  <textarea name="comment" placeholder="Комментарий к решению"></textarea>
+                  <div class="form-actions split-actions">
+                    <button type="submit" name="action" value="writeoff_approve">Согласовать списание</button>
+                    <button type="submit" name="action" value="disposal_pending">К утилизации</button>
+                    <button type="submit" name="action" value="disposed" class="primary">Утилизировано</button>
+                  </div>
+                </form>
+              </section>
+            {% endif %}
+
+            {% if item.status.value not in ["archived", "deleted"] %}
+              <section class="info-section">
+                <h2>Завершение карточки</h2>
+                <form method="post" action="/equipment/{{ item.id }}/business-action" class="inline-action-form" data-submit-once>
+                  <input type="hidden" name="row_version" value="{{ item.row_version }}">
+                  <textarea name="comment" placeholder="Причина архивации или удаления"></textarea>
+                  <div class="form-actions split-actions">
+                    <button type="submit" name="action" value="archive">В архив</button>
+                    <button type="submit" name="action" value="delete" class="danger-button">Удалить</button>
+                  </div>
+                </form>
+              </section>
+            {% endif %}
+          {% endif %}
+
           <section class="info-section">
             <h2>Поля типа</h2>
             {% if item.attributes %}

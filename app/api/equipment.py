@@ -674,6 +674,38 @@ def equipment_center_action(
     return RedirectResponse(f"/equipment/{item.id}", status_code=303)
 
 
+@router.post("/{equipment_id}/business-action", response_class=HTMLResponse)
+def equipment_business_action(
+    equipment_id: int,
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+    action: Annotated[str, Form()],
+    row_version: Annotated[int, Form()],
+    valuation_amount: Annotated[str | None, Form()] = None,
+    sale_price: Annotated[str | None, Form()] = None,
+    sale_description: Annotated[str | None, Form()] = None,
+    is_public_listing: Annotated[str | None, Form()] = None,
+    comment: Annotated[str | None, Form()] = None,
+) -> Response:
+    current_user = get_auth_provider().get_current_user(request, db)
+    require_center(current_user)
+    try:
+        item = EquipmentService(db).apply_business_action(
+            equipment_id=equipment_id,
+            action=action,
+            expected_row_version=row_version,
+            valuation_amount=valuation_amount,
+            sale_price=sale_price,
+            sale_description=sale_description,
+            is_public_listing=is_public_listing == "on",
+            comment=comment,
+        )
+    except ValueError as exc:
+        return RedirectResponse(f"/equipment/{equipment_id}?error={quote(str(exc))}", status_code=303)
+
+    return RedirectResponse(f"/equipment/{item.id}", status_code=303)
+
+
 STATUS_LABELS = {
     "draft": "Черновик",
     "submitted": "На проверке",
@@ -741,6 +773,15 @@ AUDIT_ACTION_LABELS = {
     "photos.update": "Фото изменено",
     "photos.delete": "Фото удалено",
     "photos.reorder": "Порядок фото изменён",
+    "business.valuation_save": "Оценка сохранена",
+    "business.sale_ready": "Подготовлено к продаже",
+    "business.list_for_sale": "Опубликовано к продаже",
+    "business.sold": "Продано",
+    "business.writeoff_approve": "Списание согласовано",
+    "business.disposal_pending": "Отправлено на утилизацию",
+    "business.disposed": "Утилизировано",
+    "business.archive": "Архивировано",
+    "business.delete": "Удалено",
     "center.accept": "Центр принял запись",
     "center.revision": "Центр вернул на доработку",
     "center.diagnostics": "Центр направил на диагностику",
