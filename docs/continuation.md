@@ -126,6 +126,30 @@
   - архивация;
   - soft delete.
 
+## Точка Возврата На 2026-06-14
+
+- Рабочая ветка: `dev`.
+- Точка функциональной готовности: после коммита `8dbce92 Add sale and writeoff route actions`.
+- Локальная ветка опережает `origin/dev` на 8 коммитов.
+- `docs/05_mvp_plan.md` актуален: M1-M4 закрыты, следующий блок - `M5. Приёмка И Стабилизация`.
+- Новый функционал при низком контексте не начинать; следующий заход начинать с M5.
+- Локальный dev-сервер был запущен на `http://127.0.0.1:8010`, `/health` отвечал `{"status":"ok"}`.
+
+Следующий чек-лист M5:
+
+1. Smoke-тест основных страниц: `/health`, `/login`, `/region`, `/equipment`, `/equipment/new`, `/equipment/{id}`.
+2. Проверка доступа регионов и центра.
+3. Проверка защиты от двойной отправки формы.
+4. Проверка конфликта `row_version`.
+5. Проверка загрузки, назначения, удаления и сортировки фото.
+6. Проверка создания 60 параллельных карточек.
+7. Проверка работы центра со списком во время массового создания.
+8. Обновление `README.md`.
+9. Инструкция для admin/оператора.
+10. Финальное обновление `docs/continuation.md`.
+11. Чистый `git status`.
+12. Финальный MVP-коммит или тег.
+
 ## Текущее Демо
 
 Внешний URL:
@@ -188,25 +212,24 @@ equipment_audit_log
 ## Последние Важные Коммиты
 
 ```text
-55a1fd4 Scaffold FastAPI app and dev database
-b7e91ef Add equipment registry screen
-a29b818 Document business processes
-09b7a5b Add equipment detail page
-9065235 Add equipment location field
-b0bc77a Add equipment creation form
-e0d40b5 Prevent duplicate equipment form submissions
-614862e Update project continuation context
-ac49b8b Add equipment photo upload
-2aa96b6 Document concurrent usage requirements
-e8610ab Add center equipment actions
-cc09b79 Add center work queues
-e9d0604 Add regional workspace
-be21477 Add equipment editing with version checks
-c1f5937 Add auth provider placeholder
-545ee35 Apply demo auth role checks
-f47020e Add demo login flow
-93d8281 Improve demo login usability
+8dbce92 Add sale and writeoff route actions
+e5117b6 Add registry filters and CSV export
+fe42e1b Add admin equipment type management
+6ab8667 Add admin user and region management
+5fded86 Improve documentation markdown viewer
+26b0407 Add documentation section to home
+c31e5c8 Define MVP implementation plan
+ee6dde9 Add equipment photo management
+6f2d181 Remove obsolete prototype
+8ef8123 Update continuation checkpoint
 9908702 Show fields for selected equipment type
+93d8281 Improve demo login usability
+f47020e Add demo login flow
+545ee35 Apply demo auth role checks
+c1f5937 Add auth provider placeholder
+be21477 Add equipment editing with version checks
+e9d0604 Add regional workspace
+cc09b79 Add center work queues
 ```
 
 ## Как Продолжать
@@ -217,12 +240,9 @@ f47020e Add demo login flow
 2. Проверить, что dev-сервер доступен на `http://185.168.208.240:8010/health`.
 3. Открыть `docs/05_mvp_plan.md` и вести разработку по очереди M1-M5.
 4. Следующий продуктовый шаг: `M5. Приёмка И Стабилизация`.
-5. Альтернативный следующий шаг: расширить блок оценки/продажи:
-   - оценочная стоимость;
-   - цена продажи;
-   - описание для публикации;
-   - статусы публикации/продажи.
-6. Если бизнес-решения меняются, сначала обновить `docs/07_decisions.md` и `docs/11_business_processes.md`, затем синхронизировать требования, архитектуру, БД и `technical_specification.md`.
+5. Если пользователь предлагает новую доработку, сначала оценить её по правилу границ MVP из `docs/05_mvp_plan.md`.
+6. Если доработка нужна для MVP-приёмки, добавить её в M5; если это новый функционал, записать в backlog после MVP.
+7. Если бизнес-решения меняются, сначала обновить `docs/07_decisions.md` и `docs/11_business_processes.md`, затем синхронизировать требования, архитектуру, БД и `technical_specification.md`.
 
 ## Принятые Предварительные Решения
 
