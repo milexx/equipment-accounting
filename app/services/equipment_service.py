@@ -9,6 +9,7 @@ from app.models.enums import (
     EquipmentCondition,
     EquipmentDisposition,
     EquipmentFieldType,
+    EquipmentSaleStatus,
     EquipmentStatus,
 )
 from app.repositories.audit_repository import AuditRepository
@@ -34,11 +35,15 @@ class EquipmentService:
         self,
         *,
         region_id: int | None = None,
+        equipment_type_id: int | None = None,
         status: EquipmentStatus | None = None,
         condition: EquipmentCondition | None = None,
         disposition: EquipmentDisposition | None = None,
+        sale_status: EquipmentSaleStatus | None = None,
         queue: str | None = None,
         query: str | None = None,
+        location: str | None = None,
+        attribute_filters: dict[str, str] | None = None,
         page: int = 1,
         page_size: int = 50,
     ) -> EquipmentListResult:
@@ -46,13 +51,50 @@ class EquipmentService:
             EquipmentFilters(
                 status=status,
                 region_id=region_id,
+                equipment_type_id=equipment_type_id,
                 condition=condition,
                 disposition=disposition,
+                sale_status=sale_status,
                 queue=queue,
                 query=query,
+                location=location,
+                attribute_filters=attribute_filters,
                 page=page,
                 page_size=page_size,
             )
+        )
+
+    def export_equipment(
+        self,
+        *,
+        region_id: int | None = None,
+        equipment_type_id: int | None = None,
+        status: EquipmentStatus | None = None,
+        condition: EquipmentCondition | None = None,
+        disposition: EquipmentDisposition | None = None,
+        sale_status: EquipmentSaleStatus | None = None,
+        queue: str | None = None,
+        query: str | None = None,
+        location: str | None = None,
+        attribute_filters: dict[str, str] | None = None,
+        limit: int = 10_000,
+    ) -> list[Equipment]:
+        return self.repository.export(
+            EquipmentFilters(
+                region_id=region_id,
+                equipment_type_id=equipment_type_id,
+                status=status,
+                condition=condition,
+                disposition=disposition,
+                sale_status=sale_status,
+                queue=queue,
+                query=query,
+                location=location,
+                attribute_filters=attribute_filters,
+                page=1,
+                page_size=limit,
+            ),
+            limit=limit,
         )
 
     def queue_counts(self) -> dict[str, int]:

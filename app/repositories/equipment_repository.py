@@ -1,12 +1,17 @@
 from dataclasses import dataclass
-
 from datetime import timedelta
+from typing import List
 
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.equipment import Equipment
-from app.models.enums import EquipmentCondition, EquipmentDisposition, EquipmentStatus
+from app.models.enums import (
+    EquipmentCondition,
+    EquipmentDisposition,
+    EquipmentSaleStatus,
+    EquipmentStatus,
+)
 
 
 QUEUE_FILTERS = {
@@ -34,11 +39,15 @@ QUEUE_FILTERS = {
 @dataclass(frozen=True)
 class EquipmentFilters:
     region_id: int | None = None
+    equipment_type_id: int | None = None
     status: EquipmentStatus | None = None
     condition: EquipmentCondition | None = None
     disposition: EquipmentDisposition | None = None
+    sale_status: EquipmentSaleStatus | None = None
     queue: str | None = None
     query: str | None = None
+    location: str | None = None
+    attribute_filters: dict[str, str] | None = None
     page: int = 1
     page_size: int = 50
 
@@ -73,6 +82,15 @@ class EquipmentRepository:
         total = self.db.scalar(count_stmt) or 0
         items = list(self.db.scalars(items_stmt).unique())
         return EquipmentListResult(items=items, total=total, page=page, page_size=page_size)
+
+    def export(self, filters: EquipmentFilters, limit: int = 10_000) -> List[Equipment]:
+        stmt = (
+            self._base_query(filters)
+            .options(joinedload(Equipment.region), joinedload(Equipment.equipment_type))
+            .order_by(Equipment.updated_at.desc(), Equipment.id.desc())
+            .limit(limit)
+        )
+        return list(self.db.scalars(stmt).unique())
 
     def queue_counts(self) -> dict[str, int]:
         counts: dict[str, int] = {
@@ -170,14 +188,20 @@ class EquipmentRepository:
 
         if filters.region_id:
             stmt = stmt.where(Equipment.region_id == filters.region_id)
+        if filters.equipment_type_id:
+            stmt = stmt.where(Equipment.equipment_type_id == filters.equipment_type_id)
         if filters.status:
             stmt = stmt.where(Equipment.status == filters.status)
         if filters.condition:
             stmt = stmt.where(Equipment.condition == filters.condition)
         if filters.disposition:
             stmt = stmt.where(Equipment.disposition == filters.disposition)
+        if filters.sale_status:
+            stmt = stmt.where(Equipment.sale_status == filters.sale_status)
         if filters.queue in QUEUE_FILTERS:
             stmt = stmt.where(QUEUE_FILTERS[filters.queue])
+        if filters.location:
+            stmt = stmt.where(Equipment.location.ilike(f"%{filters.location.strip()}%"))
         if filters.query:
             like = f"%{filters.query.strip()}%"
             stmt = stmt.where(
@@ -185,5 +209,8 @@ class EquipmentRepository:
                 | Equipment.inventory_number.ilike(like)
                 | Equipment.serial_number.ilike(like)
             )
+        for key, value in (filters.attribute_filters or {}).items():
+            if value.strip():
+                stmt = stmt.where(Equipment.attributes[key].astext.ilike(f"%{value.strip()}%"))
 
         return stmt

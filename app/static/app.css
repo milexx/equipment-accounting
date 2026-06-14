@@ -362,12 +362,16 @@ button:disabled {
 
 .filters {
   display: grid;
-  grid-template-columns: 1.4fr repeat(3, minmax(160px, 220px)) auto;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 10px;
   padding: 16px 20px;
   border-bottom: 1px solid #d9dee7;
   background: #fbfcfe;
   align-items: end;
+}
+
+.filters button {
+  align-self: end;
 }
 
 label {

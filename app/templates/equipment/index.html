@@ -26,7 +26,7 @@
           <a class="button-link primary-link" href="/equipment/new">Добавить оборудование</a>
           <button type="button">Колонки</button>
           <button type="button">Массовые действия</button>
-          <button type="button" class="primary">Экспорт XLSX</button>
+          <a class="button-link primary-link" href="/equipment/export.csv?{{ request.url.query }}">Экспорт CSV</a>
         </div>
       </div>
 
@@ -37,6 +37,32 @@
         <label>
           Поиск
           <input name="q" value="{{ q }}" placeholder="Название, инвентарный или серийный номер">
+        </label>
+        <label>
+          Регион
+          <select name="region_id">
+            <option value="">Все регионы</option>
+            {% for region in regions %}
+              <option value="{{ region.id }}" {% if region_id == region.id %}selected{% endif %}>
+                {{ region.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Тип
+          <select name="equipment_type_id">
+            <option value="">Все типы</option>
+            {% for equipment_type in equipment_types %}
+              <option value="{{ equipment_type.id }}" {% if equipment_type_id == equipment_type.id %}selected{% endif %}>
+                {{ equipment_type.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Местонахождение
+          <input name="location" value="{{ location }}" placeholder="Склад, кабинет, стойка">
         </label>
         <label>
           Статус
@@ -71,6 +97,23 @@
             {% endfor %}
           </select>
         </label>
+        <label>
+          Статус продажи
+          <select name="sale_status">
+            <option value="">Все статусы продажи</option>
+            {% for item in sale_statuses %}
+              <option value="{{ item.value }}" {% if sale_status == item.value %}selected{% endif %}>
+                {{ sale_status_labels[item.value] }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+        {% for field in filterable_fields %}
+          <label>
+            {{ field.name }}
+            <input name="attr_{{ field.code }}" value="{{ attribute_filters.get(field.code, '') }}" placeholder="Фильтр по полю">
+          </label>
+        {% endfor %}
         <button type="submit" class="primary">Применить</button>
       </form>
 

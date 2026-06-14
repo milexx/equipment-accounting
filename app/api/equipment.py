@@ -1,3 +1,5 @@
+import csv
+from io import StringIO
 from typing import Annotated
 from urllib.parse import quote
 from uuid import UUID
@@ -16,6 +18,7 @@ from app.models.enums import (
     EquipmentCondition,
     EquipmentDisposition,
     EquipmentPhotoPurpose,
+    EquipmentSaleStatus,
     EquipmentStatus,
 )
 from app.models.photo import EquipmentPhoto
@@ -56,9 +59,13 @@ def equipment_index(
     request: Request,
     db: Annotated[Session, Depends(get_db)],
     q: Annotated[str | None, Query()] = None,
+    region_id: Annotated[int | None, Query()] = None,
+    equipment_type_id: Annotated[int | None, Query()] = None,
+    location: Annotated[str | None, Query()] = None,
     status: Annotated[str | None, Query()] = None,
     condition: Annotated[str | None, Query()] = None,
     disposition: Annotated[str | None, Query()] = None,
+    sale_status: Annotated[str | None, Query()] = None,
     queue: Annotated[str | None, Query()] = None,
     page: Annotated[int, Query(ge=1)] = 1,
 ) -> HTMLResponse:
@@ -66,34 +73,88 @@ def equipment_index(
     require_center(current_user)
     service = EquipmentService(db)
     active_queue = queue if queue in QUEUE_LABELS else ""
+    attribute_filters = collect_attribute_filters(request)
     result = service.list_equipment(
+        region_id=region_id,
+        equipment_type_id=equipment_type_id,
         status=parse_enum(EquipmentStatus, status),
         condition=parse_enum(EquipmentCondition, condition),
         disposition=parse_enum(EquipmentDisposition, disposition),
+        sale_status=parse_enum(EquipmentSaleStatus, sale_status),
         queue=active_queue,
         query=q,
+        location=location,
+        attribute_filters=attribute_filters,
         page=page,
         page_size=50,
     )
+    equipment_types = EquipmentTypeRepository(db).list_active()
     return templates.TemplateResponse(
         request,
         "equipment/index.html",
         {
             "result": result,
             "q": q or "",
+            "region_id": region_id,
+            "equipment_type_id": equipment_type_id,
+            "location": location or "",
             "status": status or "",
             "condition": condition or "",
             "disposition": disposition or "",
+            "sale_status": sale_status or "",
             "queue": active_queue,
             "queues": QUEUE_LABELS,
             "queue_counts": service.queue_counts(),
+            "regions": RegionRepository(db).list_active_regions(),
+            "equipment_types": equipment_types,
+            "filterable_fields": filterable_fields(equipment_types),
+            "attribute_filters": attribute_filters,
             "statuses": EquipmentStatus,
             "conditions": EquipmentCondition,
             "dispositions": EquipmentDisposition,
+            "sale_statuses": EquipmentSaleStatus,
             "status_labels": STATUS_LABELS,
             "condition_labels": CONDITION_LABELS,
             "disposition_labels": DISPOSITION_LABELS,
+            "sale_status_labels": SALE_STATUS_LABELS,
         },
+    )
+
+
+@router.get("/export.csv")
+def equipment_export_csv(
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+    q: Annotated[str | None, Query()] = None,
+    region_id: Annotated[int | None, Query()] = None,
+    equipment_type_id: Annotated[int | None, Query()] = None,
+    location: Annotated[str | None, Query()] = None,
+    status: Annotated[str | None, Query()] = None,
+    condition: Annotated[str | None, Query()] = None,
+    disposition: Annotated[str | None, Query()] = None,
+    sale_status: Annotated[str | None, Query()] = None,
+    queue: Annotated[str | None, Query()] = None,
+) -> Response:
+    current_user = get_auth_provider().get_current_user(request, db)
+    require_center(current_user)
+    active_queue = queue if queue in QUEUE_LABELS else ""
+    items = EquipmentService(db).export_equipment(
+        region_id=region_id,
+        equipment_type_id=equipment_type_id,
+        status=parse_enum(EquipmentStatus, status),
+        condition=parse_enum(EquipmentCondition, condition),
+        disposition=parse_enum(EquipmentDisposition, disposition),
+        sale_status=parse_enum(EquipmentSaleStatus, sale_status),
+        queue=active_queue,
+        query=q,
+        location=location,
+        attribute_filters=collect_attribute_filters(request),
+    )
+    content = equipment_csv(items)
+    return Response(
+        content,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="equipment_export.csv"'},
     )
 
 
@@ -130,6 +191,70 @@ def edit_form_from_item(item) -> dict:
     for key, value in (item.attributes or {}).items():
         form[f"attr_{key}"] = value
     return form
+
+
+def collect_attribute_filters(request: Request) -> dict[str, str]:
+    return {
+        key.removeprefix("attr_"): value
+        for key, value in request.query_params.items()
+        if key.startswith("attr_") and value.strip()
+    }
+
+
+def filterable_fields(equipment_types) -> list:
+    fields = []
+    seen = set()
+    for equipment_type in equipment_types:
+        for field in sorted(equipment_type.fields, key=lambda item: item.display_order):
+            if not field.is_active or not field.is_filterable or field.code in seen:
+                continue
+            fields.append(field)
+            seen.add(field.code)
+    return fields
+
+
+def equipment_csv(items: list[Equipment]) -> str:
+    output = StringIO()
+    output.write("\ufeff")
+    writer = csv.writer(output)
+    writer.writerow(
+        [
+            "ID",
+            "Статус",
+            "Состояние",
+            "Маршрут",
+            "Статус продажи",
+            "Регион",
+            "Тип",
+            "Наименование",
+            "Местонахождение",
+            "Инвентарный номер",
+            "Серийный номер",
+            "Комплектность",
+            "Оценочная стоимость",
+            "Цена продажи",
+        ]
+    )
+    for item in items:
+        writer.writerow(
+            [
+                item.id,
+                STATUS_LABELS[item.status.value],
+                CONDITION_LABELS[item.condition.value],
+                DISPOSITION_LABELS[item.disposition.value],
+                SALE_STATUS_LABELS[item.sale_status.value],
+                item.region.name,
+                item.equipment_type.name,
+                item.title,
+                item.location or "",
+                item.inventory_number or "",
+                item.serial_number or "",
+                item.completeness or "",
+                item.valuation_amount or "",
+                item.sale_price or "",
+            ]
+        )
+    return output.getvalue()
 
 
 @router.post("", response_class=HTMLResponse)
