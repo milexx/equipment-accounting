@@ -6,11 +6,12 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.auth.provider import get_auth_provider
 from app.database import get_db
-from app.models.enums import UserRole
+from app.models.enums import EquipmentFieldType, UserRole
+from app.models.equipment_type import EquipmentType, EquipmentTypeField
 from app.models.region import Region
 from app.models.user import User
 
@@ -40,6 +41,13 @@ def admin_index(
         )
     )
     regions = list(db.scalars(select(Region).order_by(Region.is_active.desc(), Region.name)))
+    equipment_types = list(
+        db.scalars(
+            select(EquipmentType)
+            .options(selectinload(EquipmentType.fields))
+            .order_by(EquipmentType.is_active.desc(), EquipmentType.name)
+        )
+    )
     return templates.TemplateResponse(
         request,
         "admin/index.html",
@@ -47,8 +55,11 @@ def admin_index(
             "current_user": current_user,
             "users": users,
             "regions": regions,
+            "equipment_types": equipment_types,
             "roles": UserRole,
+            "field_types": EquipmentFieldType,
             "role_labels": ROLE_LABELS,
+            "field_type_labels": FIELD_TYPE_LABELS,
             "error": error,
         },
     )
@@ -157,8 +168,137 @@ def update_user(
     return commit_or_error(db, "Пользователь с таким логином уже существует.")
 
 
+@router.post("/equipment-types")
+def create_equipment_type(
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+    code: Annotated[str, Form()],
+    name: Annotated[str, Form()],
+    description: Annotated[str | None, Form()] = None,
+    is_active: Annotated[str | None, Form()] = None,
+) -> Response:
+    require_center_admin(request, db)
+    equipment_type = EquipmentType(
+        code=normalize_code(code).lower(),
+        name=normalize_text(name),
+        description=normalize_optional_text(description),
+        is_active=is_active == "on",
+    )
+    error = validate_equipment_type(equipment_type)
+    if error:
+        return admin_error(error)
+    db.add(equipment_type)
+    return commit_or_error(db, "Тип оборудования с таким кодом уже существует.")
+
+
+@router.post("/equipment-types/{equipment_type_id}")
+def update_equipment_type(
+    equipment_type_id: int,
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+    code: Annotated[str, Form()],
+    name: Annotated[str, Form()],
+    description: Annotated[str | None, Form()] = None,
+    is_active: Annotated[str | None, Form()] = None,
+) -> Response:
+    require_center_admin(request, db)
+    equipment_type = db.get(EquipmentType, equipment_type_id)
+    if equipment_type is None:
+        raise HTTPException(status_code=404, detail="Equipment type not found")
+    equipment_type.code = normalize_code(code).lower()
+    equipment_type.name = normalize_text(name)
+    equipment_type.description = normalize_optional_text(description)
+    equipment_type.is_active = is_active == "on"
+    error = validate_equipment_type(equipment_type)
+    if error:
+        return admin_error(error)
+    return commit_or_error(db, "Тип оборудования с таким кодом уже существует.")
+
+
+@router.post("/equipment-type-fields")
+def create_equipment_type_field(
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+    equipment_type_id: Annotated[int, Form()],
+    code: Annotated[str, Form()],
+    name: Annotated[str, Form()],
+    field_type: Annotated[str, Form()],
+    display_order: Annotated[int, Form()] = 0,
+    help_text: Annotated[str | None, Form()] = None,
+    options_text: Annotated[str | None, Form()] = None,
+    is_required: Annotated[str | None, Form()] = None,
+    is_filterable: Annotated[str | None, Form()] = None,
+    is_active: Annotated[str | None, Form()] = None,
+) -> Response:
+    require_center_admin(request, db)
+    parsed_field_type = parse_field_type(field_type)
+    if parsed_field_type is None:
+        return admin_error("Не выбран тип поля.")
+    field = EquipmentTypeField(
+        equipment_type_id=equipment_type_id,
+        code=normalize_field_code(code),
+        name=normalize_text(name),
+        field_type=parsed_field_type,
+        display_order=max(display_order, 0),
+        help_text=normalize_optional_text(help_text),
+        options=parse_options(options_text),
+        is_required=is_required == "on",
+        is_filterable=is_filterable == "on",
+        is_active=is_active == "on",
+        validation_rules={},
+    )
+    error = validate_equipment_type_field(db, field)
+    if error:
+        return admin_error(error)
+    db.add(field)
+    return commit_or_error(db, "Поле с таким кодом уже существует в выбранном типе.")
+
+
+@router.post("/equipment-type-fields/{field_id}")
+def update_equipment_type_field(
+    field_id: int,
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+    code: Annotated[str, Form()],
+    name: Annotated[str, Form()],
+    field_type: Annotated[str, Form()],
+    display_order: Annotated[int, Form()] = 0,
+    help_text: Annotated[str | None, Form()] = None,
+    options_text: Annotated[str | None, Form()] = None,
+    is_required: Annotated[str | None, Form()] = None,
+    is_filterable: Annotated[str | None, Form()] = None,
+    is_active: Annotated[str | None, Form()] = None,
+) -> Response:
+    require_center_admin(request, db)
+    field = db.get(EquipmentTypeField, field_id)
+    if field is None:
+        raise HTTPException(status_code=404, detail="Equipment type field not found")
+    parsed_field_type = parse_field_type(field_type)
+    if parsed_field_type is None:
+        return admin_error("Не выбран тип поля.")
+
+    field.code = normalize_field_code(code)
+    field.name = normalize_text(name)
+    field.field_type = parsed_field_type
+    field.display_order = max(display_order, 0)
+    field.help_text = normalize_optional_text(help_text)
+    field.options = parse_options(options_text)
+    field.is_required = is_required == "on"
+    field.is_filterable = is_filterable == "on"
+    field.is_active = is_active == "on"
+    error = validate_equipment_type_field(db, field)
+    if error:
+        return admin_error(error)
+    return commit_or_error(db, "Поле с таким кодом уже существует в выбранном типе.")
+
+
 def normalize_text(value: str) -> str:
     return value.strip()
+
+
+def normalize_optional_text(value: str | None) -> str | None:
+    normalized = (value or "").strip()
+    return normalized or None
 
 
 def normalize_login(value: str) -> str:
@@ -169,6 +309,10 @@ def normalize_code(value: str) -> str:
     return value.strip().upper()
 
 
+def normalize_field_code(value: str) -> str:
+    return value.strip().lower()
+
+
 def parse_role(value: str) -> UserRole | None:
     try:
         return UserRole(value)
@@ -176,11 +320,49 @@ def parse_role(value: str) -> UserRole | None:
         return None
 
 
+def parse_field_type(value: str) -> EquipmentFieldType | None:
+    try:
+        return EquipmentFieldType(value)
+    except ValueError:
+        return None
+
+
+def parse_options(value: str | None) -> list[str]:
+    options: list[str] = []
+    seen: set[str] = set()
+    for line in (value or "").splitlines():
+        option = line.strip()
+        if option and option not in seen:
+            options.append(option)
+            seen.add(option)
+    return options
+
+
 def validate_region(region: Region) -> str | None:
     if not region.code:
         return "Заполните код региона."
     if not region.name:
         return "Заполните название региона."
+    return None
+
+
+def validate_equipment_type(equipment_type: EquipmentType) -> str | None:
+    if not equipment_type.code:
+        return "Заполните код типа оборудования."
+    if not equipment_type.name:
+        return "Заполните название типа оборудования."
+    return None
+
+
+def validate_equipment_type_field(db: Session, field: EquipmentTypeField) -> str | None:
+    if db.get(EquipmentType, field.equipment_type_id) is None:
+        return "Выбранный тип оборудования не найден."
+    if not field.code:
+        return "Заполните код поля."
+    if not field.name:
+        return "Заполните название поля."
+    if field.field_type in {EquipmentFieldType.select, EquipmentFieldType.multiselect} and not field.options:
+        return "Для поля с выбором заполните варианты значений."
     return None
 
 
@@ -215,4 +397,15 @@ ROLE_LABELS = {
     "region": "Филиал",
     "center": "Центр",
     "center_admin": "Администратор центра",
+}
+
+FIELD_TYPE_LABELS = {
+    "string": "Строка",
+    "text": "Текст",
+    "integer": "Целое число",
+    "decimal": "Десятичное число",
+    "date": "Дата",
+    "boolean": "Да / нет",
+    "select": "Выбор",
+    "multiselect": "Множественный выбор",
 }

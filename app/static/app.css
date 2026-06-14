@@ -137,6 +137,10 @@ p {
   margin-top: 18px;
 }
 
+.admin-table-block {
+  border-top: 1px solid #d9dee7;
+}
+
 .admin-form {
   display: grid;
   gap: 12px;
@@ -156,6 +160,15 @@ p {
 
 .checkbox-field.compact {
   min-width: 72px;
+}
+
+.type-fields-section {
+  border-top: 1px solid #d9dee7;
+}
+
+.compact-textarea {
+  min-width: 180px;
+  min-height: 58px;
 }
 
 .documentation-panel {

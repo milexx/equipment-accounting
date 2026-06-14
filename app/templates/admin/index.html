@@ -22,7 +22,7 @@
       <div class="panel-head">
         <div>
           <div class="breadcrumbs"><a href="/">Главная</a> / администрирование</div>
-          <h1>Пользователи и регионы</h1>
+          <h1>Администрирование MVP</h1>
           <p>Раздел доступен только роли администратора центра.</p>
         </div>
       </div>
@@ -89,6 +89,204 @@
           </form>
         </section>
       </div>
+    </section>
+
+    <section class="panel admin-panel">
+      <div class="panel-head">
+        <div>
+          <h2>Типы оборудования и поля</h2>
+          <p>Центр может менять структуру карточек без разработки.</p>
+        </div>
+      </div>
+
+      <div class="admin-layout">
+        <section class="info-section">
+          <h2>Создать тип</h2>
+          <form method="post" action="/admin/equipment-types" class="admin-form">
+            <label>
+              Код
+              <input name="code" placeholder="monitor" required>
+            </label>
+            <label>
+              Название
+              <input name="name" placeholder="Монитор" required>
+            </label>
+            <label>
+              Описание
+              <textarea name="description" placeholder="Когда использовать этот тип"></textarea>
+            </label>
+            <label class="checkbox-field">
+              <input name="is_active" type="checkbox" checked>
+              Активен
+            </label>
+            <button type="submit" class="primary">Создать тип</button>
+          </form>
+        </section>
+
+        <section class="info-section">
+          <h2>Создать поле</h2>
+          <form method="post" action="/admin/equipment-type-fields" class="admin-form">
+            <label>
+              Тип оборудования
+              <select name="equipment_type_id" required>
+                {% for equipment_type in equipment_types %}
+                  <option value="{{ equipment_type.id }}">{{ equipment_type.name }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              Код поля
+              <input name="code" placeholder="diagonal" required>
+            </label>
+            <label>
+              Название
+              <input name="name" placeholder="Диагональ" required>
+            </label>
+            <label>
+              Тип значения
+              <select name="field_type" required>
+                {% for field_type in field_types %}
+                  <option value="{{ field_type.value }}">{{ field_type_labels[field_type.value] }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              Порядок
+              <input name="display_order" type="number" min="0" value="0">
+            </label>
+            <label>
+              Подсказка
+              <input name="help_text" placeholder="Что нужно указать">
+            </label>
+            <label>
+              Варианты для выбора
+              <textarea name="options_text" placeholder="Каждый вариант с новой строки"></textarea>
+            </label>
+            <label class="checkbox-field">
+              <input name="is_required" type="checkbox">
+              Обязательное
+            </label>
+            <label class="checkbox-field">
+              <input name="is_filterable" type="checkbox">
+              Фильтруемое
+            </label>
+            <label class="checkbox-field">
+              <input name="is_active" type="checkbox" checked>
+              Активно
+            </label>
+            <button type="submit" class="primary">Создать поле</button>
+          </form>
+        </section>
+      </div>
+
+      <div class="table-wrap admin-table-block">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Код</th>
+              <th>Название</th>
+              <th>Описание</th>
+              <th>Активен</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for equipment_type in equipment_types %}
+              <tr>
+                <td>
+                  <form id="type-form-{{ equipment_type.id }}" method="post" action="/admin/equipment-types/{{ equipment_type.id }}"></form>
+                  {{ equipment_type.id }}
+                </td>
+                <td><input form="type-form-{{ equipment_type.id }}" name="code" value="{{ equipment_type.code }}" required></td>
+                <td><input form="type-form-{{ equipment_type.id }}" name="name" value="{{ equipment_type.name }}" required></td>
+                <td><input form="type-form-{{ equipment_type.id }}" name="description" value="{{ equipment_type.description or '' }}"></td>
+                <td>
+                  <label class="checkbox-field compact">
+                    <input form="type-form-{{ equipment_type.id }}" name="is_active" type="checkbox" {% if equipment_type.is_active %}checked{% endif %}>
+                    Да
+                  </label>
+                </td>
+                <td><button form="type-form-{{ equipment_type.id }}" type="submit">Сохранить</button></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% for equipment_type in equipment_types %}
+        <section class="info-section type-fields-section">
+          <h3>{{ equipment_type.name }}</h3>
+          {% if equipment_type.fields %}
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Код</th>
+                    <th>Название</th>
+                    <th>Тип</th>
+                    <th>Порядок</th>
+                    <th>Подсказка</th>
+                    <th>Варианты</th>
+                    <th>Обяз.</th>
+                    <th>Фильтр</th>
+                    <th>Активно</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for field in equipment_type.fields|sort(attribute="display_order") %}
+                    <tr>
+                      <td>
+                        <form id="field-form-{{ field.id }}" method="post" action="/admin/equipment-type-fields/{{ field.id }}"></form>
+                        {{ field.id }}
+                      </td>
+                      <td><input form="field-form-{{ field.id }}" name="code" value="{{ field.code }}" required></td>
+                      <td><input form="field-form-{{ field.id }}" name="name" value="{{ field.name }}" required></td>
+                      <td>
+                        <select form="field-form-{{ field.id }}" name="field_type" required>
+                          {% for field_type in field_types %}
+                            <option value="{{ field_type.value }}" {% if field.field_type.value == field_type.value %}selected{% endif %}>
+                              {{ field_type_labels[field_type.value] }}
+                            </option>
+                          {% endfor %}
+                        </select>
+                      </td>
+                      <td><input form="field-form-{{ field.id }}" name="display_order" type="number" min="0" value="{{ field.display_order }}"></td>
+                      <td><input form="field-form-{{ field.id }}" name="help_text" value="{{ field.help_text or '' }}"></td>
+                      <td>
+                        <textarea form="field-form-{{ field.id }}" name="options_text" class="compact-textarea">{{ '\n'.join(field.options or []) }}</textarea>
+                      </td>
+                      <td>
+                        <label class="checkbox-field compact">
+                          <input form="field-form-{{ field.id }}" name="is_required" type="checkbox" {% if field.is_required %}checked{% endif %}>
+                          Да
+                        </label>
+                      </td>
+                      <td>
+                        <label class="checkbox-field compact">
+                          <input form="field-form-{{ field.id }}" name="is_filterable" type="checkbox" {% if field.is_filterable %}checked{% endif %}>
+                          Да
+                        </label>
+                      </td>
+                      <td>
+                        <label class="checkbox-field compact">
+                          <input form="field-form-{{ field.id }}" name="is_active" type="checkbox" {% if field.is_active %}checked{% endif %}>
+                          Да
+                        </label>
+                      </td>
+                      <td><button form="field-form-{{ field.id }}" type="submit">Сохранить</button></td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <p class="muted">Полей пока нет.</p>
+          {% endif %}
+        </section>
+      {% endfor %}
     </section>
 
     <section class="panel admin-panel">
