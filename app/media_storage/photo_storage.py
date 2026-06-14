@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 from uuid import UUID, uuid4
 
 from fastapi import UploadFile
@@ -83,6 +84,12 @@ class PhotoStorage:
         thumbnail.thumbnail((360, 360))
         thumbnail.save(path, "JPEG", quality=82, optimize=True)
 
+    def delete_paths(self, paths: list[str]) -> None:
+        for public_path in paths:
+            file_path = self._file_path(public_path)
+            if file_path and file_path.exists():
+                file_path.unlink()
+
     def _extension(self, content_type: str) -> str:
         if content_type == "image/png":
             return ".png"
@@ -93,3 +100,13 @@ class PhotoStorage:
     def _public_path(self, path: Path) -> str:
         relative = path.relative_to(self.root)
         return f"/media/photos/{relative.as_posix()}"
+
+    def _file_path(self, public_path: str) -> Path | None:
+        parsed_path = unquote(urlparse(public_path).path)
+        prefix = "/media/photos/"
+        if not parsed_path.startswith(prefix):
+            return None
+        candidate = (self.root / parsed_path.removeprefix(prefix)).resolve()
+        if self.root not in candidate.parents:
+            return None
+        return candidate

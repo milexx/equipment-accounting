@@ -10,3 +10,7 @@ class EquipmentPhotoRepository:
     def add_all(self, photos: list[EquipmentPhoto]) -> None:
         self.db.add_all(photos)
         self.db.flush()
+
+    def delete(self, photo: EquipmentPhoto) -> None:
+        self.db.delete(photo)
+        self.db.flush()

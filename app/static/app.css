@@ -548,6 +548,7 @@ th {
   border: 1px solid #d9dee7;
   border-radius: 8px;
   padding: 10px;
+  flex-wrap: wrap;
 }
 
 .photo-card span {
@@ -556,6 +557,50 @@ th {
   color: #667085;
   font-size: 12px;
   overflow-wrap: anywhere;
+}
+
+.photo-controls {
+  display: grid;
+  grid-template-columns: 86px minmax(150px, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+  flex: 1 1 100%;
+}
+
+.photo-controls form {
+  display: contents;
+}
+
+.photo-controls label,
+.photo-upload-form label {
+  font-size: 12px;
+  color: #667085;
+}
+
+.photo-controls input,
+.photo-controls select,
+.photo-upload-form input {
+  margin-top: 4px;
+}
+
+.photo-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.photo-upload-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #d9dee7;
+}
+
+.danger-button {
+  border-color: #fed7d2;
+  background: #fff8f6;
+  color: #9b1c1c;
 }
 
 .photo-thumb-link {
@@ -706,6 +751,10 @@ textarea {
   }
 
   .inline-action-form {
+    grid-template-columns: 1fr;
+  }
+
+  .photo-controls {
     grid-template-columns: 1fr;
   }
 

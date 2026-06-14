@@ -1,13 +1,17 @@
 from typing import Annotated
 from urllib.parse import quote
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session, selectinload
 
 from app.auth.provider import can_access_equipment_region, get_auth_provider, require_center
 from app.database import get_db
+from app.models.audit import EquipmentAuditLog
+from app.models.equipment import Equipment
 from app.models.enums import (
     EquipmentCondition,
     EquipmentDisposition,
@@ -324,10 +328,12 @@ async def save_uploaded_photos(
     db: Session,
     equipment_id: int,
     uploads: dict[EquipmentPhotoPurpose, list[UploadFile]],
-) -> None:
+    start_order: int = 0,
+    commit: bool = True,
+) -> list[EquipmentPhoto]:
     storage = PhotoStorage()
     photos: list[EquipmentPhoto] = []
-    display_order = 0
+    display_order = start_order
     for purpose, files in uploads.items():
         for upload in files:
             stored = await storage.save_upload(
@@ -355,7 +361,135 @@ async def save_uploaded_photos(
             display_order += 1
     if photos:
         EquipmentPhotoRepository(db).add_all(photos)
+        if commit:
+            db.commit()
+    return photos
+
+
+@router.post("/{equipment_id}/photos", response_class=HTMLResponse)
+async def equipment_photos_update(
+    equipment_id: int,
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+    action: Annotated[str, Form()],
+    row_version: Annotated[int, Form()],
+    photo_id: Annotated[UUID | None, Form()] = None,
+    purpose: Annotated[str | None, Form()] = None,
+) -> Response:
+    current_user = get_auth_provider().get_current_user(request, db)
+    item = db.scalar(
+        select(Equipment)
+        .where(Equipment.id == equipment_id, Equipment.deleted_at.is_(None))
+        .options(selectinload(Equipment.photos))
+        .with_for_update()
+    )
+    if item is None:
+        raise HTTPException(status_code=404, detail="Equipment not found")
+    if not can_access_equipment_region(current_user, item.region_id):
+        raise HTTPException(status_code=403, detail="Нет доступа к карточке чужого региона.")
+    if item.row_version != row_version:
+        return RedirectResponse(
+            f"/equipment/{equipment_id}?error={quote('Карточку уже изменили. Обновите страницу и повторите действие.')}",
+            status_code=303,
+        )
+
+    try:
+        form = await request.form()
+        old_photos = photo_audit_snapshot(item.photos)
+        if action == "upload":
+            uploads = collect_photo_uploads(form)
+            next_order = max((photo.display_order for photo in item.photos), default=-1) + 1
+            new_photos = await save_uploaded_photos(
+                db,
+                item.id,
+                uploads,
+                start_order=next_order,
+                commit=False,
+            )
+            if not new_photos:
+                raise ValueError("Выберите хотя бы одно фото для загрузки.")
+            item.photos.extend(new_photos)
+            audit_action = "photos.upload"
+        elif action == "update":
+            photo = require_photo(item, photo_id)
+            parsed_purpose = parse_enum(EquipmentPhotoPurpose, purpose)
+            if parsed_purpose is None:
+                raise ValueError("Не выбрано назначение фото.")
+            photo.purpose = parsed_purpose
+            audit_action = "photos.update"
+        elif action == "delete":
+            photo = require_photo(item, photo_id)
+            PhotoStorage().delete_paths([photo.original_path, photo.thumbnail_path])
+            item.photos.remove(photo)
+            EquipmentPhotoRepository(db).delete(photo)
+            audit_action = "photos.delete"
+        elif action == "reorder":
+            if not apply_photo_order(item.photos, form):
+                return RedirectResponse(f"/equipment/{equipment_id}", status_code=303)
+            audit_action = "photos.reorder"
+        else:
+            raise ValueError("Неизвестное действие с фото.")
+
+        item.row_version += 1
+        item.updated_at = func.now()
+        db.flush()
+        EquipmentService(db).audit_repository.add(
+            EquipmentAuditLog(
+                equipment_id=item.id,
+                actor_user_id=current_user.id,
+                actor_region_id=current_user.region_id,
+                action=audit_action,
+                old_data={"photos": old_photos, "row_version": row_version},
+                new_data={
+                    "photos": photo_audit_snapshot(item.photos),
+                    "row_version": item.row_version,
+                },
+            )
+        )
         db.commit()
+    except ValueError as exc:
+        db.rollback()
+        return RedirectResponse(f"/equipment/{equipment_id}?error={quote(str(exc))}", status_code=303)
+
+    return RedirectResponse(f"/equipment/{equipment_id}", status_code=303)
+
+
+def require_photo(item: Equipment, photo_id: UUID | None) -> EquipmentPhoto:
+    if photo_id is None:
+        raise ValueError("Фото не найдено.")
+    for photo in item.photos:
+        if photo.id == photo_id:
+            return photo
+    raise ValueError("Фото не найдено в этой карточке.")
+
+
+def apply_photo_order(photos: list[EquipmentPhoto], form) -> bool:
+    changed = False
+    for photo in photos:
+        raw_order = form.get(f"order_{photo.id}")
+        if raw_order is None:
+            continue
+        try:
+            display_order = int(raw_order)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Порядок фото должен быть числом.") from exc
+        display_order = max(display_order, 0)
+        if photo.display_order != display_order:
+            photo.display_order = display_order
+            changed = True
+    return changed
+
+
+def photo_audit_snapshot(photos: list[EquipmentPhoto]) -> list[dict]:
+    return [
+        {
+            "id": str(photo.id),
+            "purpose": photo.purpose.value,
+            "display_order": photo.display_order,
+            "original_filename": photo.original_filename,
+        }
+        for photo in sorted(photos, key=lambda item: (item.display_order, item.created_at))
+    ]
 
 
 @router.get("/{equipment_id}", response_class=HTMLResponse)
@@ -478,6 +612,10 @@ QUEUE_LABELS = {
 
 AUDIT_ACTION_LABELS = {
     "equipment.update": "Карточка отредактирована",
+    "photos.upload": "Фото загружены",
+    "photos.update": "Фото изменено",
+    "photos.delete": "Фото удалено",
+    "photos.reorder": "Порядок фото изменён",
     "center.accept": "Центр принял запись",
     "center.revision": "Центр вернул на доработку",
     "center.diagnostics": "Центр направил на диагностику",
