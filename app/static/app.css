@@ -126,6 +126,49 @@ p {
   flex-wrap: wrap;
 }
 
+.documentation-panel {
+  max-width: 1040px;
+  margin: 0 auto;
+}
+
+.documentation-list {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+}
+
+.documentation-link {
+  display: grid;
+  min-height: auto;
+  gap: 6px;
+  border: 1px solid #d9dee7;
+  border-radius: 8px;
+  padding: 14px;
+  background: #fbfcfe;
+  color: #1f2933;
+  text-decoration: none;
+}
+
+.documentation-link:hover {
+  border-color: #1769aa;
+  background: #eef4fb;
+}
+
+.documentation-link span {
+  color: #667085;
+  font-weight: 400;
+}
+
+.documentation-content {
+  margin: 0;
+  padding: 20px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: #1f2933;
+  font: 14px/1.55 Arial, Helvetica, sans-serif;
+}
+
 a {
   display: inline-flex;
   min-height: 38px;

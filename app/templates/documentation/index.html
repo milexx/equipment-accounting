@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Документация</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Учёт оборудования</div>
+    <nav>
+      <a href="/">Главная</a>
+      <a href="/documentation" class="active">Документация</a>
+    </nav>
+  </header>
+
+  <main class="workbench">
+    <section class="panel documentation-panel">
+      <div class="panel-head">
+        <div>
+          <div class="breadcrumbs"><a href="/">Главная</a> / документация</div>
+          <h1>Документация</h1>
+          <p>Актуальные проектные документы читаются напрямую из каталога docs.</p>
+        </div>
+      </div>
+
+      <div class="documentation-list">
+        {% for slug, document in documents.items() %}
+          <a class="documentation-link" href="/documentation/{{ slug }}">
+            <strong>{{ document.title }}</strong>
+            <span>{{ document.description }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    </section>
+  </main>
+</body>
+</html>
