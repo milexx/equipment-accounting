@@ -137,6 +137,7 @@ p {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
   padding: 20px;
+  background: #fbfcfe;
 }
 
 .admin-panel {
@@ -150,6 +151,81 @@ p {
 .admin-form {
   display: grid;
   gap: 12px;
+}
+
+.admin-overview {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #d9dee7;
+  background: #fbfcfe;
+}
+
+.admin-overview div {
+  border: 1px solid #d9dee7;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
+}
+
+.admin-overview span,
+.admin-overview strong {
+  display: block;
+}
+
+.admin-overview span {
+  color: #667085;
+  font-size: 13px;
+}
+
+.admin-overview strong {
+  margin-top: 6px;
+  color: #1f2933;
+  font-size: 22px;
+}
+
+.admin-details {
+  border-top: 1px solid #d9dee7;
+  background: #fff;
+}
+
+.admin-details summary {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  padding: 0 20px;
+  color: #1f2933;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-details summary:hover {
+  background: #f8fafc;
+}
+
+.admin-details-standalone {
+  border-top: 0;
+}
+
+.admin-details-note {
+  margin: 0;
+  padding: 0 20px 14px;
+  color: #667085;
+  font-size: 14px;
+}
+
+.admin-table input,
+.admin-table select,
+.admin-table textarea {
+  min-width: 140px;
+  margin-top: 0;
+  font-size: 14px;
+}
+
+.admin-table button {
+  min-width: 100px;
 }
 
 .checkbox-field {
@@ -959,6 +1035,11 @@ textarea {
     flex-direction: column;
   }
 
+  .admin-layout,
+  .admin-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .detail-layout {
     grid-template-columns: 1fr;
   }
@@ -1002,6 +1083,11 @@ textarea {
 @media (max-width: 640px) {
   .workbench {
     padding: 12px;
+  }
+
+  .admin-layout,
+  .admin-overview {
+    grid-template-columns: 1fr;
   }
 
   .filter-row,

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Администрирование</title>
-  <link rel="stylesheet" href="/static/app.css">
+  <link rel="stylesheet" href="/static/app.css?v=20260614-admin-layout">
 </head>
 <body>
   <header class="topbar">
@@ -27,6 +27,29 @@
       {% if error %}
         <div class="form-errors">{{ error }}</div>
       {% endif %}
+
+      {% set overview = namespace(field_count=0) %}
+      {% for equipment_type in equipment_types %}
+        {% set overview.field_count = overview.field_count + equipment_type.fields|length %}
+      {% endfor %}
+      <div class="admin-overview">
+        <div>
+          <span>Пользователи</span>
+          <strong>{{ users|length }}</strong>
+        </div>
+        <div>
+          <span>Регионы</span>
+          <strong>{{ regions|length }}</strong>
+        </div>
+        <div>
+          <span>Типы оборудования</span>
+          <strong>{{ equipment_types|length }}</strong>
+        </div>
+        <div>
+          <span>Поля типов</span>
+          <strong>{{ overview.field_count }}</strong>
+        </div>
+      </div>
 
       <div class="admin-layout">
         <section class="info-section">
@@ -176,47 +199,50 @@
         </section>
       </div>
 
-      <div class="table-wrap admin-table-block">
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Код</th>
-              <th>Название</th>
-              <th>Описание</th>
-              <th>Активен</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for equipment_type in equipment_types %}
+      <details class="admin-details">
+        <summary>Типы оборудования</summary>
+        <div class="table-wrap admin-table-block">
+          <table class="admin-table">
+            <thead>
               <tr>
-                <td>
-                  <form id="type-form-{{ equipment_type.id }}" method="post" action="/admin/equipment-types/{{ equipment_type.id }}"></form>
-                  {{ equipment_type.id }}
-                </td>
-                <td><input form="type-form-{{ equipment_type.id }}" name="code" value="{{ equipment_type.code }}" required></td>
-                <td><input form="type-form-{{ equipment_type.id }}" name="name" value="{{ equipment_type.name }}" required></td>
-                <td><input form="type-form-{{ equipment_type.id }}" name="description" value="{{ equipment_type.description or '' }}"></td>
-                <td>
-                  <label class="checkbox-field compact">
-                    <input form="type-form-{{ equipment_type.id }}" name="is_active" type="checkbox" {% if equipment_type.is_active %}checked{% endif %}>
-                    Да
-                  </label>
-                </td>
-                <td><button form="type-form-{{ equipment_type.id }}" type="submit">Сохранить</button></td>
+                <th>ID</th>
+                <th>Код</th>
+                <th>Название</th>
+                <th>Описание</th>
+                <th>Активен</th>
+                <th></th>
               </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {% for equipment_type in equipment_types %}
+                <tr>
+                  <td>
+                    <form id="type-form-{{ equipment_type.id }}" method="post" action="/admin/equipment-types/{{ equipment_type.id }}"></form>
+                    {{ equipment_type.id }}
+                  </td>
+                  <td><input form="type-form-{{ equipment_type.id }}" name="code" value="{{ equipment_type.code }}" required></td>
+                  <td><input form="type-form-{{ equipment_type.id }}" name="name" value="{{ equipment_type.name }}" required></td>
+                  <td><input form="type-form-{{ equipment_type.id }}" name="description" value="{{ equipment_type.description or '' }}"></td>
+                  <td>
+                    <label class="checkbox-field compact">
+                      <input form="type-form-{{ equipment_type.id }}" name="is_active" type="checkbox" {% if equipment_type.is_active %}checked{% endif %}>
+                      Да
+                    </label>
+                  </td>
+                  <td><button form="type-form-{{ equipment_type.id }}" type="submit">Сохранить</button></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </details>
 
       {% for equipment_type in equipment_types %}
-        <section class="info-section type-fields-section">
-          <h3>{{ equipment_type.name }}</h3>
+        <details class="admin-details type-fields-section">
+          <summary>Поля типа: {{ equipment_type.name }}</summary>
           {% if equipment_type.fields %}
             <div class="table-wrap">
-              <table>
+              <table class="admin-table">
                 <thead>
                   <tr>
                     <th>ID</th>
@@ -282,19 +308,16 @@
           {% else %}
             <p class="muted">Полей пока нет.</p>
           {% endif %}
-        </section>
+        </details>
       {% endfor %}
     </section>
 
     <section class="panel admin-panel">
-      <div class="panel-head">
-        <div>
-          <h2>Пользователи</h2>
-          <p>Региональные пользователи должны быть привязаны к региону.</p>
-        </div>
-      </div>
-      <div class="table-wrap">
-        <table>
+      <details class="admin-details admin-details-standalone">
+        <summary>Пользователи</summary>
+        <p class="admin-details-note">Региональные пользователи должны быть привязаны к региону.</p>
+        <div class="table-wrap">
+        <table class="admin-table">
           <thead>
             <tr>
               <th>ID</th>
@@ -348,17 +371,15 @@
           </tbody>
         </table>
       </div>
+      </details>
     </section>
 
     <section class="panel admin-panel">
-      <div class="panel-head">
-        <div>
-          <h2>Регионы</h2>
-          <p>Выключенный регион нельзя выбрать в формах создания оборудования.</p>
-        </div>
-      </div>
-      <div class="table-wrap">
-        <table>
+      <details class="admin-details admin-details-standalone">
+        <summary>Регионы</summary>
+        <p class="admin-details-note">Выключенный регион нельзя выбрать в формах создания оборудования.</p>
+        <div class="table-wrap">
+        <table class="admin-table">
           <thead>
             <tr>
               <th>ID</th>
@@ -389,6 +410,7 @@
           </tbody>
         </table>
       </div>
+      </details>
     </section>
   </main>
 </body>
