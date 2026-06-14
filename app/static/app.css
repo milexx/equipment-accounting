@@ -459,7 +459,7 @@ button:disabled {
 }
 
 .filter-row-main {
-  grid-template-columns: minmax(360px, 2fr) minmax(260px, 1fr) 160px;
+  grid-template-columns: minmax(280px, 1.6fr) minmax(210px, 1fr) minmax(180px, 0.9fr) minmax(180px, 0.9fr) 150px;
 }
 
 .filter-row-taxonomy {
@@ -488,6 +488,36 @@ button:disabled {
 
 .filter-actions button {
   width: 100%;
+}
+
+.advanced-filters {
+  border: 1px solid #d9dee7;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.advanced-filters summary {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  padding: 0 12px;
+  color: #344054;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.advanced-filters summary:hover {
+  background: #f8fafc;
+}
+
+.advanced-filters .filter-row {
+  padding: 12px;
+  border-top: 1px solid #d9dee7;
+}
+
+.advanced-filters .filter-row + .filter-row {
+  border-top: 0;
+  padding-top: 0;
 }
 
 label {
