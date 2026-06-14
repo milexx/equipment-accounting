@@ -462,8 +462,12 @@ button:disabled {
   grid-template-columns: minmax(280px, 1.6fr) minmax(210px, 1fr) minmax(180px, 0.9fr) minmax(180px, 0.9fr) 150px;
 }
 
+.filter-row-search {
+  grid-template-columns: minmax(320px, 1fr) 150px;
+}
+
 .filter-row-taxonomy {
-  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
 }
 
 .filter-row-process,
@@ -1082,6 +1086,10 @@ textarea {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .filter-row-search {
+    grid-template-columns: minmax(0, 1fr) 150px;
+  }
+
   .filter-actions {
     grid-column: 1 / -1;
   }
@@ -1122,6 +1130,7 @@ textarea {
 
   .filter-row,
   .filter-row-main,
+  .filter-row-search,
   .filter-row-taxonomy,
   .filter-row-process,
   .filter-row-attributes {

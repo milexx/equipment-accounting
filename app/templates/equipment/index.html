@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Реестр оборудования</title>
-  <link rel="stylesheet" href="/static/app.css?v=20260614-operational-registry">
+  <link rel="stylesheet" href="/static/app.css?v=20260614-compact-registry">
 </head>
 <body>
   <header class="topbar">
@@ -44,11 +44,19 @@
         {% if queue %}
           <input type="hidden" name="queue" value="{{ queue }}">
         {% endif %}
-        <div class="filter-row filter-row-main">
+        <div class="filter-row filter-row-search">
           <label class="filter-field">
             Поиск
             <input name="q" value="{{ q }}" placeholder="Название, инвентарный или серийный номер">
           </label>
+          <div class="filter-actions">
+            <button type="submit" class="primary">Применить</button>
+          </div>
+        </div>
+
+        <details class="advanced-filters" {% if location or region_id or equipment_type_id or status or condition or disposition or sale_status or attribute_filters %}open{% endif %}>
+          <summary>Фильтры</summary>
+          <div class="filter-row filter-row-taxonomy">
           <label class="filter-field">
             Местонахождение
             <input name="location" value="{{ location }}" placeholder="Склад, кабинет, стойка">
@@ -75,13 +83,7 @@
               {% endfor %}
             </select>
           </label>
-          <div class="filter-actions">
-            <button type="submit" class="primary">Применить</button>
           </div>
-        </div>
-
-        <details class="advanced-filters" {% if status or condition or disposition or sale_status or attribute_filters %}open{% endif %}>
-          <summary>Дополнительные фильтры</summary>
           <div class="filter-row filter-row-process">
             <label class="filter-field">
               Статус
