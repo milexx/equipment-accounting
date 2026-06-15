@@ -27,6 +27,11 @@ DOCUMENTS = {
         "description": "Краткая инструкция по работе региона, центра и администратора.",
         "path": DOCS_ROOT / "12_operator_admin_guide.md",
     },
+    "tech-stack": {
+        "title": "Техстек системы",
+        "description": "Backend, база данных, frontend, хранение фото, авторизация и проверки.",
+        "path": DOCS_ROOT / "13_tech_stack.md",
+    },
 }
 
 
