@@ -386,6 +386,9 @@ Offline-анализ day 1 уточнил:
 
 ```bash
 .venv/bin/python src/worker.py --analyze-run runs/{run_id}
+.venv/bin/python src/worker.py --write-markdown-report runs/{run_id} --output runs/{run_id}/offline_report.md
+.venv/bin/python src/worker.py --from-html runs/{run_id}/{job_code}/raw_pages/page_1.html --job-code {job_code} --config config/search_jobs.json --runs-dir runs
+.venv/bin/python src/worker.py --dry-run-config --config config/search_jobs.json
 ```
 
 - добавлены offline-тесты POC:

@@ -70,6 +70,24 @@ runs/{run_id}/{job_code}/
 - признаки HTML-проблем: `access_restricted_ip`, `page_not_found`, `captcha`;
 - сводку причин `rejected` и `unknown`.
 
+Markdown-отчёт из сохранённого run:
+
+```bash
+.venv/bin/python src/worker.py --write-markdown-report runs/20260618T075423Z --output runs/20260618T075423Z/offline_report.md
+```
+
+Пересчёт сохранённого HTML без сетевого запроса:
+
+```bash
+.venv/bin/python src/worker.py --from-html runs/20260618T075423Z/lenovo_t14/raw_pages/page_1.html --job-code lenovo_t14 --config config/search_jobs.json --runs-dir runs
+```
+
+Проверка конфига без сетевого запроса:
+
+```bash
+.venv/bin/python src/worker.py --dry-run-config --config config/search_jobs.json
+```
+
 ## Offline-Тесты
 
 Тесты не делают сетевых запросов и проверяют классификацию, snapshot-расчёт, диагностику HTML-проблем и анализатор run:

@@ -41,12 +41,20 @@
 
 ```bash
 .venv/bin/python -m unittest discover -s tests
+.venv/bin/python src/worker.py --dry-run-config --config config/search_jobs.json
 ```
 
 Затем один live run:
 
 ```bash
 .venv/bin/python src/worker.py --config config/search_jobs.json --runs-dir runs
+```
+
+После live run сформировать offline-анализ и markdown-таблицу:
+
+```bash
+.venv/bin/python src/worker.py --analyze-run runs/{run_id}
+.venv/bin/python src/worker.py --write-markdown-report runs/{run_id} --output runs/{run_id}/offline_report.md
 ```
 
 Если перед запуском локальный ignored config устарел:

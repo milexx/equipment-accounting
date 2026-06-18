@@ -8,6 +8,7 @@ from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
 from curl_cffi import requests
@@ -226,24 +227,15 @@ def calculate_snapshot(
     }
 
 
-def run_job(job: dict[str, Any], timeout: int, run_dir: Path) -> dict[str, Any]:
-    fetched_at = iso(utc_now())
-    job_dir = run_dir / job["code"]
+def process_html(
+    job: dict[str, Any],
+    fetched_at: str,
+    job_dir: Path,
+    status_code: int,
+    headers: dict[str, str],
+    html_text: str,
+) -> dict[str, Any]:
     raw_dir = job_dir / "raw_pages"
-    try:
-        status_code, headers, html_text = fetch_html(job["search_url"], timeout)
-    except Exception as exc:
-        report = {
-            "job_code": job["code"],
-            "status": "parser_error",
-            "error": f"{type(exc).__name__}: {exc}",
-            "items_found": 0,
-            "items_relevant": 0,
-            "fetched_at": fetched_at,
-        }
-        write_json(job_dir / "job_report.json", report)
-        return report
-
     (raw_dir / "page_1.html").parent.mkdir(parents=True, exist_ok=True)
     (raw_dir / "page_1.html").write_text(html_text, encoding="utf-8")
     write_json(job_dir / "response_meta.json", {"status_code": status_code, "headers": headers})
@@ -327,6 +319,26 @@ def run_job(job: dict[str, Any], timeout: int, run_dir: Path) -> dict[str, Any]:
     return report
 
 
+def run_job(job: dict[str, Any], timeout: int, run_dir: Path) -> dict[str, Any]:
+    fetched_at = iso(utc_now())
+    job_dir = run_dir / job["code"]
+    try:
+        status_code, headers, html_text = fetch_html(job["search_url"], timeout)
+    except Exception as exc:
+        report = {
+            "job_code": job["code"],
+            "status": "parser_error",
+            "error": f"{type(exc).__name__}: {exc}",
+            "items_found": 0,
+            "items_relevant": 0,
+            "fetched_at": fetched_at,
+        }
+        write_json(job_dir / "job_report.json", report)
+        return report
+
+    return process_html(job, fetched_at, job_dir, status_code, headers, html_text)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="config/search_jobs.json")
@@ -361,6 +373,78 @@ def main() -> int:
     write_json(run_dir / "run_report.json", run_report)
     print(json.dumps(run_report, ensure_ascii=False, indent=2))
     return 0
+
+
+def read_config(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def validate_config(config: dict[str, Any]) -> tuple[bool, list[str], dict[str, Any]]:
+    errors: list[str] = []
+    jobs = config.get("jobs")
+    if not isinstance(jobs, list) or not jobs:
+        errors.append("jobs must be a non-empty list")
+        jobs = []
+
+    seen_codes: set[str] = set()
+    for index, job in enumerate(jobs):
+        prefix = f"jobs[{index}]"
+        if not isinstance(job, dict):
+            errors.append(f"{prefix} must be an object")
+            continue
+        code = job.get("code")
+        if not isinstance(code, str) or not code:
+            errors.append(f"{prefix}.code is required")
+        elif code in seen_codes:
+            errors.append(f"{prefix}.code is duplicated: {code}")
+        else:
+            seen_codes.add(code)
+
+        for field in ["position_name", "source", "search_url"]:
+            if not isinstance(job.get(field), str) or not job.get(field):
+                errors.append(f"{prefix}.{field} is required")
+
+        url = job.get("search_url")
+        if isinstance(url, str) and url:
+            parsed = urlparse(url)
+            if parsed.scheme != "https":
+                errors.append(f"{prefix}.search_url must use https")
+            if parsed.netloc != "www.avito.ru":
+                errors.append(f"{prefix}.search_url must point to www.avito.ru")
+            if not parsed.query:
+                errors.append(f"{prefix}.search_url must include a query string")
+
+        for field in ["required_terms", "negative_terms"]:
+            value = job.get(field)
+            if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+                errors.append(f"{prefix}.{field} must be a list of strings")
+
+        for field in ["price_min", "price_max"]:
+            if not isinstance(job.get(field), int):
+                errors.append(f"{prefix}.{field} must be an integer")
+        if isinstance(job.get("price_min"), int) and isinstance(job.get("price_max"), int):
+            if job["price_min"] >= job["price_max"]:
+                errors.append(f"{prefix}.price_min must be lower than price_max")
+
+    summary = {
+        "jobs_total": len(jobs),
+        "job_codes": [job.get("code") for job in jobs if isinstance(job, dict)],
+        "request_delay_seconds": config.get("request_delay_seconds"),
+        "timeout_seconds": config.get("timeout_seconds"),
+    }
+    return not errors, errors, summary
+
+
+def print_config_validation(config_path: Path) -> int:
+    config = read_config(config_path)
+    is_valid, errors, summary = validate_config(config)
+    payload = {
+        "status": "ok" if is_valid else "invalid",
+        "errors": errors,
+        "summary": summary,
+    }
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0 if is_valid else 2
 
 
 def load_json(path: Path, default: Any) -> Any:
@@ -446,14 +530,152 @@ def print_run_analysis(run_dir: Path) -> int:
     return 0
 
 
+def find_job(config: dict[str, Any], job_code: str) -> dict[str, Any]:
+    for job in config.get("jobs", []):
+        if job.get("code") == job_code:
+            return job
+    raise ValueError(f"Unknown job code: {job_code}")
+
+
+def process_from_html(config_path: Path, job_code: str, html_path: Path, runs_dir: Path) -> int:
+    config = read_config(config_path)
+    job = find_job(config, job_code)
+    started_at = utc_now()
+    run_id = f"{started_at.strftime('%Y%m%dT%H%M%SZ')}_offline"
+    run_dir = runs_dir / run_id
+    html_text = html_path.read_text(encoding="utf-8", errors="replace")
+    report = process_html(
+        job,
+        iso(started_at),
+        run_dir / job["code"],
+        200,
+        {"offline_source": str(html_path)},
+        html_text,
+    )
+    finished_at = utc_now()
+    run_report = {
+        "run_id": run_id,
+        "started_at": iso(started_at),
+        "finished_at": iso(finished_at),
+        "status": "success" if report["status"] in {"success", "no_data"} else "partial_success",
+        "jobs_total": 1,
+        "jobs_success": 1 if report["status"] == "success" else 0,
+        "jobs_blocked": 1 if report["status"] in {"blocked", "captcha"} else 0,
+        "jobs_failed": 1 if report["status"] not in {"success", "no_data", "blocked", "captcha"} else 0,
+        "job_reports": [report],
+    }
+    write_json(run_dir / "run_report.json", run_report)
+    print(json.dumps(run_report, ensure_ascii=False, indent=2))
+    return 0
+
+
+def value_or_dash(value: Any) -> str:
+    if value is None:
+        return "-"
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)
+
+
+def render_markdown_report(analysis: dict[str, Any]) -> str:
+    lines = [
+        f"# Price Monitoring Run Report: {analysis['run_id']}",
+        "",
+        f"Status: `{analysis.get('status')}`.",
+        "",
+        "```text",
+        f"started_at: {analysis.get('started_at')}",
+        f"finished_at: {analysis.get('finished_at')}",
+        f"jobs_total: {analysis.get('jobs_total')}",
+        "```",
+        "",
+        "| Позиция | HTTP | Статус | Raw | Normalized | Relevant | Unknown | Rejected | Min | Max | Median | Findings |",
+        "|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---|",
+    ]
+    for job in analysis["jobs"]:
+        findings = ", ".join(job["html_findings"]) if job["html_findings"] else "-"
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    f"`{job['job_code']}`",
+                    value_or_dash(job.get("http_status")),
+                    f"`{job.get('status')}`",
+                    value_or_dash(job.get("raw_count")),
+                    value_or_dash(job.get("normalized_count")),
+                    value_or_dash(job.get("relevant_count")),
+                    value_or_dash(job.get("unknown_count")),
+                    value_or_dash(job.get("rejected_count")),
+                    value_or_dash(job.get("min_price")),
+                    value_or_dash(job.get("max_price")),
+                    value_or_dash(job.get("median_price")),
+                    findings,
+                ]
+            )
+            + " |"
+        )
+
+    lines.extend(["", "## Reject Reasons", ""])
+    for job in analysis["jobs"]:
+        lines.append(f"### `{job['job_code']}`")
+        if not job["rejected_reason_counts"] and not job["unknown_reason_counts"]:
+            lines.append("")
+            lines.append("No reject or unknown reasons.")
+            lines.append("")
+            continue
+        for title, key in [
+            ("Rejected", "rejected_reason_counts"),
+            ("Unknown", "unknown_reason_counts"),
+        ]:
+            if not job[key]:
+                continue
+            lines.append("")
+            lines.append(title + ":")
+            lines.append("")
+            for reason, count in job[key].items():
+                lines.append(f"- `{reason}`: {count}")
+        lines.append("")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def write_markdown_report(run_dir: Path, output_path: Path) -> int:
+    report = render_markdown_report(analyze_run(run_dir))
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(report, encoding="utf-8")
+    print(str(output_path))
+    return 0
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--config", default="config/search_jobs.json")
+    parser.add_argument("--runs-dir", default="runs")
     parser.add_argument("--analyze-run")
+    parser.add_argument("--write-markdown-report")
+    parser.add_argument("--output")
+    parser.add_argument("--dry-run-config", action="store_true")
+    parser.add_argument("--from-html")
+    parser.add_argument("--job-code")
     args, remaining = parser.parse_known_args()
+    config_path = Path(args.config)
+
+    if args.dry_run_config:
+        raise SystemExit(print_config_validation(config_path))
     if args.analyze_run:
         raise SystemExit(print_run_analysis(Path(args.analyze_run)))
+    if args.write_markdown_report:
+        if not args.output:
+            raise SystemExit("--output is required with --write-markdown-report")
+        raise SystemExit(write_markdown_report(Path(args.write_markdown_report), Path(args.output)))
+    if args.from_html:
+        if not args.job_code:
+            raise SystemExit("--job-code is required with --from-html")
+        raise SystemExit(
+            process_from_html(config_path, args.job_code, Path(args.from_html), Path(args.runs_dir))
+        )
 
     import sys
 
-    sys.argv = [sys.argv[0], *remaining]
+    sys.argv = [sys.argv[0], "--config", str(config_path), "--runs-dir", args.runs_dir, *remaining]
     raise SystemExit(main())

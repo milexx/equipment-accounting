@@ -165,5 +165,102 @@ class WorkerAnalyzeRunTest(unittest.TestCase):
         self.assertEqual(report["jobs"][0]["rejected_reason_counts"], {"negative_term:экран": 1})
 
 
+class WorkerConfigValidationTest(unittest.TestCase):
+    def test_valid_config_passes_without_network(self) -> None:
+        config = {
+            "request_delay_seconds": 5,
+            "timeout_seconds": 20,
+            "jobs": [
+                {
+                    "code": "job1",
+                    "position_name": "Job 1",
+                    "source": "avito",
+                    "search_url": "https://www.avito.ru/all?q=Job+1",
+                    "required_terms": ["job"],
+                    "negative_terms": ["запчасти"],
+                    "price_min": 1,
+                    "price_max": 100,
+                }
+            ],
+        }
+
+        is_valid, errors, summary = worker.validate_config(config)
+
+        self.assertTrue(is_valid)
+        self.assertEqual(errors, [])
+        self.assertEqual(summary["job_codes"], ["job1"])
+
+    def test_invalid_config_reports_errors(self) -> None:
+        config = {
+            "jobs": [
+                {
+                    "code": "job1",
+                    "position_name": "Job 1",
+                    "source": "avito",
+                    "search_url": "http://example.com/no-query",
+                    "required_terms": "job",
+                    "negative_terms": [],
+                    "price_min": 100,
+                    "price_max": 1,
+                },
+                {
+                    "code": "job1",
+                    "position_name": "Job 2",
+                    "source": "avito",
+                    "search_url": "https://www.avito.ru/all?q=Job+2",
+                    "required_terms": [],
+                    "negative_terms": [],
+                    "price_min": 1,
+                    "price_max": 100,
+                },
+            ]
+        }
+
+        is_valid, errors, _summary = worker.validate_config(config)
+
+        self.assertFalse(is_valid)
+        self.assertIn("jobs[0].search_url must use https", errors)
+        self.assertIn("jobs[0].search_url must point to www.avito.ru", errors)
+        self.assertIn("jobs[0].search_url must include a query string", errors)
+        self.assertIn("jobs[0].required_terms must be a list of strings", errors)
+        self.assertIn("jobs[0].price_min must be lower than price_max", errors)
+        self.assertIn("jobs[1].code is duplicated: job1", errors)
+
+
+class WorkerMarkdownReportTest(unittest.TestCase):
+    def test_render_markdown_report_includes_summary_table_and_reasons(self) -> None:
+        analysis = {
+            "run_id": "run1",
+            "status": "partial_success",
+            "started_at": "2026-06-18T00:00:00Z",
+            "finished_at": "2026-06-18T00:00:01Z",
+            "jobs_total": 1,
+            "jobs": [
+                {
+                    "job_code": "lenovo_t14",
+                    "status": "success",
+                    "http_status": 200,
+                    "raw_count": 50,
+                    "normalized_count": 50,
+                    "relevant_count": 30,
+                    "unknown_count": 0,
+                    "rejected_count": 20,
+                    "min_price": 16990,
+                    "max_price": 99000,
+                    "median_price": 29450.0,
+                    "html_findings": [],
+                    "rejected_reason_counts": {"negative_term:экран": 7},
+                    "unknown_reason_counts": {},
+                }
+            ],
+        }
+
+        markdown = worker.render_markdown_report(analysis)
+
+        self.assertIn("# Price Monitoring Run Report: run1", markdown)
+        self.assertIn("| `lenovo_t14` | 200 | `success` | 50 | 50 | 30 | 0 | 20 |", markdown)
+        self.assertIn("- `negative_term:экран`: 7", markdown)
+
+
 if __name__ == "__main__":
     unittest.main()
