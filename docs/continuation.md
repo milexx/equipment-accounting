@@ -126,14 +126,18 @@
   - архивация;
   - soft delete.
 
-## Точка Возврата На 2026-06-14
+## Точка Возврата На 2026-06-16
 
 - Рабочая ветка: `dev`.
-- Точка функциональной готовности: после коммита `8dbce92 Add sale and writeoff route actions`.
-- M5 приёмка и стабилизация пройдены.
-- `docs/05_mvp_plan.md` актуален: M1-M5 закрыты, следующий шаг - финальный MVP-коммит/тег и решение о публикации.
-- Новый функционал после этой точки сначала оценивать по правилу границ MVP; если запуск не блокируется, переносить в backlog после MVP.
-- Локальный dev-сервер был запущен на `http://127.0.0.1:8010`, `/health` отвечал `{"status":"ok"}`.
+- Текущий опубликованный коммит: `57048c4 Publish tech stack documentation`.
+- Ветка `dev` синхронизирована с `origin/dev`.
+- MVP завершён и помечен тегом `mvp-2026-06-14` на коммите `588e92a`.
+- После MVP выполнена UI-полировка региона, центра и admin-раздела.
+- Добавлен `DESIGN.md` как локальный стандарт спокойного операционного интерфейса.
+- Центр `/equipment`: очереди вынесены выше фильтров, видимым оставлен компактный поиск, остальные фильтры спрятаны в раскрываемый блок `Фильтры`.
+- Admin `/admin`: верхняя навигация упрощена, добавлена сводка, редактируемые списки свернуты в раскрываемые секции.
+- Документация `/documentation`: опубликованы бизнес-процесс, MVP-план, инструкция оператора/admin и техстек системы.
+- Dev-сервер оставлен запущенным на `0.0.0.0:8010`; предупреждения `Invalid HTTP request received` от внешних сканеров можно игнорировать.
 
 Команда приёмки, которая прошла:
 
@@ -217,24 +221,162 @@ equipment_audit_log
 ## Последние Важные Коммиты
 
 ```text
+57048c4 Publish tech stack documentation
+e2dd1f6 Make registry filters compact
+6e999fa Add design guide and simplify registry workspace
+ff482a3 Calm admin interface layout
+30f30b4 Simplify admin navigation
+40ff6f3 Handle empty registry filter ids
+cc30970 Harden center filter layout rendering
+20fc97a Refine center registry filters
+36a336e Fix center registry filter layout
+55e6574 Simplify regional workspace navigation
+588e92a Complete MVP acceptance stabilization
+fb54f57 Update MVP continuation checkpoint
 8dbce92 Add sale and writeoff route actions
 e5117b6 Add registry filters and CSV export
 fe42e1b Add admin equipment type management
 6ab8667 Add admin user and region management
-5fded86 Improve documentation markdown viewer
-26b0407 Add documentation section to home
-c31e5c8 Define MVP implementation plan
-ee6dde9 Add equipment photo management
-6f2d181 Remove obsolete prototype
-8ef8123 Update continuation checkpoint
-9908702 Show fields for selected equipment type
-93d8281 Improve demo login usability
-f47020e Add demo login flow
-545ee35 Apply demo auth role checks
-c1f5937 Add auth provider placeholder
-be21477 Add equipment editing with version checks
-e9d0604 Add regional workspace
-cc09b79 Add center work queues
+```
+
+## Точка Возврата На 2026-06-17: Исследование Оценщика
+
+MVP не трогать. Вся работа по оценщику велась как будущий дополнительный модуль и research.
+
+Созданы документы:
+
+```text
+docs/14_price_monitoring_module.md
+docs/15_price_monitoring_mvp_plan.md
+docs/16_price_monitoring_decisions.md
+docs/17_price_monitoring_developer_handoff.md
+docs/18_avito_data_source_discovery.md
+docs/19_avito_data_source_discovery_results.md
+docs/20_intermediary_avito_data_services.md
+docs/21_avito_vendor_spike_requests.md
+docs/22_avito_self_service_technical_spike.md
+docs/23_apify_avito_spike_results.md
+docs/24_free_avito_source_options.md
+docs/25_agentic_browser_avito_mode.md
+docs/26_self_hosted_avito_background_monitoring.md
+docs/27_duff89_parser_avito_audit.md
+docs/28_duff89_parser_avito_poc_results.md
+docs/29_clean_room_avito_parser_design.md
+docs/30_clean_room_avito_parser_poc_results.md
+docs/31_price_monitoring_research_timeline_2026-06-17.md
+```
+
+Ключевые решения:
+
+- Официальный API Avito для поиска публичных объявлений по рынку не найден.
+- Официальные API Avito относятся к управлению своими объявлениями, статистике, продвижению и связанным сервисам, но не к поиску чужих объявлений для оценки рынка.
+- Прямой простой запрос к Avito с сервера ранее давал `HTTP 429` / CAPTCHA.
+- Платные источники данных исключены как production-вариант:
+  - Apify;
+  - Bright Data;
+  - MarketParser;
+  - ShopAPIS;
+  - и аналоги.
+- Apify технически подтвердил, что данные Avito можно получить, но получил статус `no_go_paid_service`.
+- Exa/SERP API не подходят как источник daily snapshot, потому что это поисковые/индексные результаты, а не структурированный Avito listing source.
+- Готовый open-source `Duff89/parser_avito` проверен в `/tmp`:
+  - первый one-shot run без cookies/proxy получил 50 объявлений;
+  - сохранил 49 в Excel;
+  - второй run показал, что parser фильтрует уже виденные объявления и поэтому не подходит как daily full snapshot из коробки;
+  - у проекта не найден явный LICENSE, код нельзя переносить в продукт.
+- Принято решение делать собственный clean-room parser-worker как research POC, не копируя чужой код.
+
+Research POC:
+
+```text
+research/avito-monitor-worker-poc/
+```
+
+Содержит:
+
+```text
+README.md
+config/search_jobs.example.json
+src/worker.py
+.gitignore
+```
+
+Статус POC:
+
+```text
+pipeline_works_http_unstable
+```
+
+Что подтверждено:
+
+- clean-room worker может извлечь 50 карточек из сохранённого live HTML Avito;
+- нормализация в JSON работает;
+- raw snapshot сохраняется до фильтрации;
+- фильтр делит объявления на `relevant`, `unknown`, `rejected`;
+- snapshot считается только по `relevant`.
+
+Последний offline-пересчёт по сохранённому HTML:
+
+```text
+raw: 50
+normalized: 50
+relevant: 37
+unknown: 3
+rejected: 10
+min_price: 15000
+max_price: 65000
+median_price: 23995
+```
+
+Что не подтверждено:
+
+- стабильный live HTTP доступ без cookies/proxy;
+- production-надежность;
+- работа по 3-5 позициям;
+- endurance test 3-5 дней;
+- качество фильтров для всех категорий.
+
+Важное ограничение:
+
+```text
+Не делать частые live-запросы к Avito.
+```
+
+Следующий безопасный план:
+
+1. Не запускать live Avito parser часто.
+2. Следующий live run делать не чаще 1 раза в день.
+3. Расширить research config до 3 позиций только перед endurance test.
+4. Endurance test: 3 позиции, 1 запуск в день, 3-5 дней, без cookies/proxy.
+5. По итогам выбрать:
+   - `go_worker_prototype`;
+   - `hold_http_unstable`;
+   - `browser_profile_research`.
+
+## Точка Возврата На 2026-06-17: Демо-Меню
+
+Для демо сценария "регионы - центр" скрыт администратор центра из видимого списка входа `/login`.
+
+Изменение:
+
+```text
+app/api/auth.py
+```
+
+Что сделано:
+
+- пользователь с ролью `center_admin` больше не показывается на странице `/login`;
+- маршруты `/admin` не отключены;
+- прямой доступ к `/admin?as=admin` сохранён;
+- `equipment-accounting.service` перезапущен;
+- проверено:
+  - `/login` показывает регионы и `Пользователь центра`;
+  - `/admin?as=admin` открывается со статусом `200`.
+
+Причина:
+
+```text
+Раздел администратора центра сложный и перегружает демо. Пока заходить в него по прямой ссылке, позже можно вернуть в меню.
 ```
 
 ## Как Продолжать
@@ -243,10 +385,10 @@ cc09b79 Add center work queues
 
 1. Проверить `git status`.
 2. Проверить, что dev-сервер доступен на `http://185.168.208.240:8010/health`.
-3. Открыть `docs/05_mvp_plan.md` и вести разработку по очереди M1-M5.
-4. M5 уже пройден; следующий шаг - проверить `git status`, сделать финальный MVP-коммит и при необходимости тег.
-5. Если пользователь предлагает новую доработку, сначала оценить её по правилу границ MVP из `docs/05_mvp_plan.md`.
-6. Если доработка нужна для MVP-приёмки, добавить её в M5; если это новый функционал, записать в backlog после MVP.
+3. Если интерфейс “не поменялся”, сначала проверить внешний HTML/CSS через `curl` и версию query-string у `/static/app.css`.
+4. Перед новыми UI-правками читать `DESIGN.md`.
+5. Если пользователь предлагает новую доработку, оценить её как post-MVP, если она не блокирует показ/пилот.
+6. Если доработка нужна для демо стейкхолдерам, делать точечно и пушить в `origin/dev`.
 7. Если бизнес-решения меняются, сначала обновить `docs/07_decisions.md` и `docs/11_business_processes.md`, затем синхронизировать требования, архитектуру, БД и `technical_specification.md`.
 
 ## Принятые Предварительные Решения

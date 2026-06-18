@@ -1,0 +1,7 @@
+runs/
+*.html
+*.xlsx
+*.db
+__pycache__/
+.venv/
+

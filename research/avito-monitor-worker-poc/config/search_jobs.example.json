@@ -1,0 +1,20 @@
+{
+  "run_mode": "one_shot",
+  "request_delay_seconds": 5,
+  "timeout_seconds": 20,
+  "max_pages": 1,
+  "jobs": [
+    {
+      "code": "kyocera_m2040dn",
+      "position_name": "Kyocera ECOSYS M2040dn",
+      "source": "avito",
+      "search_url": "https://www.avito.ru/all/orgtehnika_i_rashodniki?q=Kyocera+ECOSYS+M2040dn",
+      "required_terms": ["kyocera", "m2040dn"],
+      "positive_terms": ["мфу", "принтер", "ecosys"],
+      "negative_terms": ["печка", "плата", "шлейф", "донор", "запчасти", "запчасть", "ремонт", "нерабоч", "блок проявки", "фотовал", "ракель", "прижимная планка"],
+      "price_min": 5000,
+      "price_max": 80000
+    }
+  ]
+}
+

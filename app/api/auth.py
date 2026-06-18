@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.models.enums import UserRole
 from app.models.user import User
 
 router = APIRouter(tags=["auth"])
@@ -18,7 +19,16 @@ def login_page(
     request: Request,
     db: Annotated[Session, Depends(get_db)],
 ) -> HTMLResponse:
-    users = list(db.scalars(select(User).where(User.is_active.is_(True)).order_by(User.role, User.login)))
+    users = list(
+        db.scalars(
+            select(User)
+            .where(
+                User.is_active.is_(True),
+                User.role != UserRole.center_admin,
+            )
+            .order_by(User.role, User.login)
+        )
+    )
     return templates.TemplateResponse(
         request,
         "auth/login.html",

@@ -1,0 +1,15 @@
+[Unit]
+Description=Equipment Accounting FastAPI
+After=network-online.target postgresql.service postgresql@16-main.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/workspace/projects/equipment-accounting
+EnvironmentFile=/opt/workspace/projects/equipment-accounting/.env
+ExecStart=/opt/workspace/projects/equipment-accounting/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8010
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
