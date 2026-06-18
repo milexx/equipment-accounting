@@ -50,6 +50,8 @@
 .venv/bin/python src/worker.py --config config/search_jobs.json --runs-dir runs
 ```
 
+Worker остановит повторный live run в тот же UTC-день со статусом `blocked_by_same_day_guard`.
+
 После live run сформировать offline-анализ и markdown-таблицу:
 
 ```bash
@@ -67,6 +69,7 @@ cp config/search_jobs.example.json config/search_jobs.json
 
 - один live run в день;
 - не делать retry при `blocked`, `captcha`, `403`, `429` или `page_not_found`;
+- не использовать `--allow-same-day-live`, кроме инфраструктурного сбоя до обращения к Avito;
 - не использовать cookies;
 - не использовать proxy;
 - не обходить CAPTCHA;

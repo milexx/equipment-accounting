@@ -262,5 +262,52 @@ class WorkerMarkdownReportTest(unittest.TestCase):
         self.assertIn("- `negative_term:экран`: 7", markdown)
 
 
+class WorkerLiveRunGuardTest(unittest.TestCase):
+    def test_live_run_exists_for_date_ignores_offline_runs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            runs_dir = Path(tmp)
+            offline_dir = runs_dir / "20260618T010000Z_offline"
+            offline_dir.mkdir()
+            (offline_dir / "run_report.json").write_text(
+                json.dumps(
+                    {
+                        "run_id": "20260618T010000Z_offline",
+                        "started_at": "2026-06-18T01:00:00Z",
+                        "status": "success",
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            run_exists, existing_run = worker.live_run_exists_for_date(runs_dir, "2026-06-18")
+
+        self.assertFalse(run_exists)
+        self.assertIsNone(existing_run)
+
+    def test_live_run_exists_for_date_detects_live_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            runs_dir = Path(tmp)
+            live_dir = runs_dir / "20260618T010000Z"
+            live_dir.mkdir()
+            (live_dir / "run_report.json").write_text(
+                json.dumps(
+                    {
+                        "run_id": "20260618T010000Z",
+                        "started_at": "2026-06-18T01:00:00Z",
+                        "status": "partial_success",
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            run_exists, existing_run = worker.live_run_exists_for_date(runs_dir, "2026-06-18")
+
+        self.assertTrue(run_exists)
+        self.assertIsNotNone(existing_run)
+        assert existing_run is not None
+        self.assertEqual(existing_run["run_id"], "20260618T010000Z")
+        self.assertEqual(existing_run["status"], "partial_success")
+
+
 if __name__ == "__main__":
     unittest.main()

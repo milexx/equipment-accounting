@@ -339,16 +339,51 @@ def run_job(job: dict[str, Any], timeout: int, run_dir: Path) -> dict[str, Any]:
     return process_html(job, fetched_at, job_dir, status_code, headers, html_text)
 
 
+def live_run_exists_for_date(runs_dir: Path, run_date: str) -> tuple[bool, dict[str, Any] | None]:
+    if not runs_dir.exists():
+        return False, None
+    for run_report_path in sorted(runs_dir.glob("*/run_report.json"), reverse=True):
+        run_id = run_report_path.parent.name
+        if run_id.endswith("_offline"):
+            continue
+        run_report = load_json(run_report_path, {})
+        started_at = run_report.get("started_at")
+        if isinstance(started_at, str) and started_at[:10] == run_date:
+            return True, {
+                "run_id": run_report.get("run_id", run_id),
+                "started_at": started_at,
+                "status": run_report.get("status"),
+                "path": str(run_report_path.parent),
+            }
+    return False, None
+
+
+def print_same_day_live_guard(existing_run: dict[str, Any], run_date: str) -> int:
+    payload = {
+        "status": "blocked_by_same_day_guard",
+        "run_date": run_date,
+        "message": "Live Avito run already exists for this UTC date",
+        "existing_run": existing_run,
+    }
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 3
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="config/search_jobs.json")
     parser.add_argument("--runs-dir", default="runs")
+    parser.add_argument("--allow-same-day-live", action="store_true")
     args = parser.parse_args()
 
     started_at = utc_now()
     run_id = started_at.strftime("%Y%m%dT%H%M%SZ")
     run_dir = Path(args.runs_dir) / run_id
     config = json.loads(Path(args.config).read_text(encoding="utf-8"))
+    if not args.allow_same_day_live:
+        run_exists, existing_run = live_run_exists_for_date(Path(args.runs_dir), started_at.date().isoformat())
+        if run_exists and existing_run is not None:
+            return print_same_day_live_guard(existing_run, started_at.date().isoformat())
 
     job_reports = []
     jobs = config.get("jobs", [])

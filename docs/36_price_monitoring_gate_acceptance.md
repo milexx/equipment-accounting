@@ -68,6 +68,8 @@ cd research/avito-monitor-worker-poc
 .venv/bin/python src/worker.py --config config/search_jobs.json --runs-dir runs
 ```
 
+Если запуск остановился со статусом `blocked_by_same_day_guard`, новый live run в этот день не делать. Исключение только для подтверждённого инфраструктурного сбоя до обращения к Avito.
+
 После запуска:
 
 ```bash

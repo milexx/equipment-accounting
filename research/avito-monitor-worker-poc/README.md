@@ -36,6 +36,16 @@ cp config/search_jobs.example.json config/search_jobs.json
 .venv/bin/python src/worker.py --config config/search_jobs.json --runs-dir runs
 ```
 
+Live-запуск защищён от случайного повтора в тот же UTC-день. Если в `runs/` уже есть live `run_report.json` за текущую дату, worker остановится до сетевых запросов со статусом `blocked_by_same_day_guard`.
+
+Принудительный повтор возможен только явным флагом:
+
+```bash
+.venv/bin/python src/worker.py --config config/search_jobs.json --runs-dir runs --allow-same-day-live
+```
+
+Использовать этот флаг только для инфраструктурных сбоев до обращения к Avito, например DNS/sandbox, и фиксировать причину в отчёте.
+
 Результаты появятся в:
 
 ```text
