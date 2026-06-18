@@ -3,6 +3,7 @@ import html
 import json
 import random
 import statistics
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -218,7 +219,19 @@ def run_job(job: dict[str, Any], timeout: int, run_dir: Path) -> dict[str, Any]:
     fetched_at = iso(utc_now())
     job_dir = run_dir / job["code"]
     raw_dir = job_dir / "raw_pages"
-    status_code, headers, html_text = fetch_html(job["search_url"], timeout)
+    try:
+        status_code, headers, html_text = fetch_html(job["search_url"], timeout)
+    except Exception as exc:
+        report = {
+            "job_code": job["code"],
+            "status": "parser_error",
+            "error": f"{type(exc).__name__}: {exc}",
+            "items_found": 0,
+            "items_relevant": 0,
+            "fetched_at": fetched_at,
+        }
+        write_json(job_dir / "job_report.json", report)
+        return report
 
     (raw_dir / "page_1.html").parent.mkdir(parents=True, exist_ok=True)
     (raw_dir / "page_1.html").write_text(html_text, encoding="utf-8")
@@ -230,6 +243,7 @@ def run_job(job: dict[str, Any], timeout: int, run_dir: Path) -> dict[str, Any]:
             "job_code": job["code"],
             "status": "blocked" if reason != "captcha" else "captcha",
             "block_reason": reason,
+            "http_status": status_code,
             "items_found": 0,
             "items_relevant": 0,
             "fetched_at": fetched_at,
@@ -276,6 +290,7 @@ def run_job(job: dict[str, Any], timeout: int, run_dir: Path) -> dict[str, Any]:
     report = {
         "job_code": job["code"],
         "status": snapshot["status"],
+        "http_status": status_code,
         "items_found": len(raw_items),
         "items_normalized": len(normalized),
         "items_relevant": len(relevant),
@@ -298,10 +313,13 @@ def main() -> int:
     run_dir = Path(args.runs_dir) / run_id
     config = json.loads(Path(args.config).read_text(encoding="utf-8"))
 
-    job_reports = [
-        run_job(job, config.get("timeout_seconds", 20), run_dir)
-        for job in config.get("jobs", [])
-    ]
+    job_reports = []
+    jobs = config.get("jobs", [])
+    request_delay = config.get("request_delay_seconds", 0)
+    for index, job in enumerate(jobs):
+        if index > 0 and request_delay > 0:
+            time.sleep(request_delay)
+        job_reports.append(run_job(job, config.get("timeout_seconds", 20), run_dir))
 
     finished_at = utc_now()
     run_report = {
@@ -322,4 +340,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

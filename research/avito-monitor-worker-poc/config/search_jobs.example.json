@@ -14,7 +14,28 @@
       "negative_terms": ["печка", "плата", "шлейф", "донор", "запчасти", "запчасть", "ремонт", "нерабоч", "блок проявки", "фотовал", "ракель", "прижимная планка"],
       "price_min": 5000,
       "price_max": 80000
+    },
+    {
+      "code": "lenovo_t14",
+      "position_name": "Lenovo ThinkPad T14",
+      "source": "avito",
+      "search_url": "https://www.avito.ru/all/noutbuki?q=Lenovo+ThinkPad+T14",
+      "required_terms": ["thinkpad", "t14"],
+      "positive_terms": ["lenovo", "ноутбук"],
+      "negative_terms": ["клавиатура", "матрица", "экран", "плата", "корпус", "крышка", "аккумулятор", "зарядка", "донор", "запчасти", "запчасть", "ремонт", "нерабоч"],
+      "price_min": 10000,
+      "price_max": 150000
+    },
+    {
+      "code": "dell_r740",
+      "position_name": "Dell PowerEdge R740",
+      "source": "avito",
+      "search_url": "https://www.avito.ru/all/servernoe_oborudovanie?q=Dell+PowerEdge+R740",
+      "required_terms": ["dell", "r740"],
+      "positive_terms": ["poweredge", "сервер"],
+      "negative_terms": ["процессор", "память", "жесткий диск", "диск", "raid", "контроллер", "блок питания", "салазки", "корзина", "лицензия", "донор", "запчасти", "запчасть", "ремонт", "нерабоч"],
+      "price_min": 50000,
+      "price_max": 800000
     }
   ]
 }
-

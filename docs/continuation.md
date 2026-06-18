@@ -265,6 +265,7 @@ docs/29_clean_room_avito_parser_design.md
 docs/30_clean_room_avito_parser_poc_results.md
 docs/31_price_monitoring_research_timeline_2026-06-17.md
 docs/32_price_monitoring_implementation_plan.md
+docs/33_price_monitoring_endurance_day_1.md
 ```
 
 Ключевые решения:
@@ -361,6 +362,20 @@ docs/32_price_monitoring_implementation_plan.md
 ```
 
 Главное правило плана: до `go_worker_prototype` после endurance test не переносить модуль в основное приложение и не начинать миграции/UI `/pricing`.
+
+Endurance day 1 выполнен 2026-06-18:
+
+```text
+run_id: 20260618T075423Z
+status: partial_success_http_unstable
+kyocera_m2040dn: HTTP 403 blocked
+lenovo_t14: HTTP 200 success, raw 50, relevant 30, median 29450
+dell_r740: HTTP 200 no_data
+```
+
+Решение после day 1: `continue_endurance_with_caution`.
+
+Важно: не делать повторный live Avito run 2026-06-18. Следующий live run - 2026-06-19 или позже, один запуск в день.
 
 ## Точка Возврата На 2026-06-17: Демо-Меню
 

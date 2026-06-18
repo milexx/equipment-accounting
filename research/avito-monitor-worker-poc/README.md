@@ -72,3 +72,12 @@ Endurance test:
 - без proxy/cookies;
 - фиксировать `success`, `blocked`, `captcha`, `parser_error`.
 
+## Журнал Endurance Test
+
+Правило: не больше одного live-запуска в день. При `blocked`, `captcha`, `403` или `429` не делать повторный запуск в этот же день.
+
+| День | Дата | Позиции | Результат | Документ |
+|---|---|---|---|---|
+| 1 | 2026-06-18 | `kyocera_m2040dn`, `lenovo_t14`, `dell_r740` | `partial_success_http_unstable` | `docs/33_price_monitoring_endurance_day_1.md` |
+
+В git коммитятся только конфиги, код и отчёты. Runtime-данные `runs/`, raw HTML и локальный `config/search_jobs.json` не коммитятся.

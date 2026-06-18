@@ -1,7 +1,7 @@
 runs/
+config/search_jobs.json
 *.html
 *.xlsx
 *.db
 __pycache__/
 .venv/
-
