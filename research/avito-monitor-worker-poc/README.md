@@ -70,6 +70,14 @@ runs/{run_id}/{job_code}/
 - признаки HTML-проблем: `access_restricted_ip`, `page_not_found`, `captcha`;
 - сводку причин `rejected` и `unknown`.
 
+## Offline-Тесты
+
+Тесты не делают сетевых запросов и проверяют классификацию, snapshot-расчёт, диагностику HTML-проблем и анализатор run:
+
+```bash
+.venv/bin/python -m unittest discover -s tests
+```
+
 ## Методика
 
 `relevant` участвует в `min_price`, `max_price`, `median_price`.

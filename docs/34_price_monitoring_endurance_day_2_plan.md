@@ -37,6 +37,14 @@
 
 Из `research/avito-monitor-worker-poc/`:
 
+Сначала офлайн-проверки без сети:
+
+```bash
+.venv/bin/python -m unittest discover -s tests
+```
+
+Затем один live run:
+
 ```bash
 .venv/bin/python src/worker.py --config config/search_jobs.json --runs-dir runs
 ```

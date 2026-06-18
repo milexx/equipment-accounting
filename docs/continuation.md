@@ -388,6 +388,12 @@ Offline-анализ day 1 уточнил:
 .venv/bin/python src/worker.py --analyze-run runs/{run_id}
 ```
 
+- добавлены offline-тесты POC:
+
+```bash
+.venv/bin/python -m unittest discover -s tests
+```
+
 Важно: не делать повторный live Avito run 2026-06-18. Следующий live run - 2026-06-19 или позже, один запуск в день.
 
 ## Точка Возврата На 2026-06-17: Демо-Меню
