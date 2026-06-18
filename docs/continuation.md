@@ -267,6 +267,8 @@ docs/31_price_monitoring_research_timeline_2026-06-17.md
 docs/32_price_monitoring_implementation_plan.md
 docs/33_price_monitoring_endurance_day_1.md
 docs/34_price_monitoring_endurance_day_2_plan.md
+docs/35_price_monitoring_database_design.md
+docs/36_price_monitoring_gate_acceptance.md
 ```
 
 Ключевые решения:
@@ -398,6 +400,12 @@ Offline-анализ day 1 уточнил:
 ```
 
 Важно: не делать повторный live Avito run 2026-06-18. Следующий live run - 2026-06-19 или позже, один запуск в день.
+
+Офлайн-подготовка после day 1:
+
+- подготовлен предварительный проект БД без миграций: `docs/35_price_monitoring_database_design.md`;
+- подготовлен gate/acceptance checklist: `docs/36_price_monitoring_gate_acceptance.md`;
+- правило не изменилось: backend-модели, Alembic и UI `/pricing` не начинать до решения `go_worker_prototype`.
 
 ## Точка Возврата На 2026-06-17: Демо-Меню
 
