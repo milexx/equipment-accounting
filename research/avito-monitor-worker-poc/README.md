@@ -54,6 +54,22 @@ runs/{run_id}/{job_code}/
 - `job_report.json`;
 - `run_report.json`.
 
+## Offline-Анализ Run
+
+Повторный live-запуск для анализа не нужен. Уже сохранённый run можно разобрать так:
+
+```bash
+.venv/bin/python src/worker.py --analyze-run runs/20260618T075423Z
+```
+
+Анализатор показывает:
+
+- HTTP/status по каждой позиции;
+- `raw`, `normalized`, `relevant`, `unknown`, `rejected`;
+- `min`, `max`, `median`;
+- признаки HTML-проблем: `access_restricted_ip`, `page_not_found`, `captcha`;
+- сводку причин `rejected` и `unknown`.
+
 ## Методика
 
 `relevant` участвует в `min_price`, `max_price`, `median_price`.
@@ -79,5 +95,6 @@ Endurance test:
 | День | Дата | Позиции | Результат | Документ |
 |---|---|---|---|---|
 | 1 | 2026-06-18 | `kyocera_m2040dn`, `lenovo_t14`, `dell_r740` | `partial_success_http_unstable` | `docs/33_price_monitoring_endurance_day_1.md` |
+| 2 | 2026-06-19 или позже | `kyocera_m2040dn`, `lenovo_t14`, `dell_r740` | planned | `docs/34_price_monitoring_endurance_day_2_plan.md` |
 
 В git коммитятся только конфиги, код и отчёты. Runtime-данные `runs/`, raw HTML и локальный `config/search_jobs.json` не коммитятся.

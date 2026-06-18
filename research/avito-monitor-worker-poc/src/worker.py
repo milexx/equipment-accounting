@@ -4,6 +4,7 @@ import json
 import random
 import statistics
 import time
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -76,6 +77,16 @@ def extract_items(state_data: dict[str, Any]) -> list[dict[str, Any]]:
     catalog = state_data.get("catalog") or {}
     items = catalog.get("items") or []
     return [item for item in items if isinstance(item, dict) and item.get("id")]
+
+
+def detect_page_problem(html_text: str, state_data: dict[str, Any]) -> tuple[bool, str | None]:
+    normalized_text = html_text.replace("\xa0", " ")
+    if "Такой страницы не существует" in normalized_text:
+        return True, "page_not_found"
+    status = state_data.get("status") or {}
+    if isinstance(status, dict) and status.get("code") == 404:
+        return True, "page_not_found"
+    return False, None
 
 
 def price_value(item: dict[str, Any]) -> int | None:
@@ -252,6 +263,20 @@ def run_job(job: dict[str, Any], timeout: int, run_dir: Path) -> dict[str, Any]:
         return report
 
     state_data = extract_state_data(html_text)
+    has_page_problem, page_problem = detect_page_problem(html_text, state_data)
+    if has_page_problem:
+        report = {
+            "job_code": job["code"],
+            "status": "parser_error",
+            "error": page_problem,
+            "http_status": status_code,
+            "items_found": 0,
+            "items_relevant": 0,
+            "fetched_at": fetched_at,
+        }
+        write_json(job_dir / "job_report.json", report)
+        return report
+
     raw_items = extract_items(state_data)
     write_json(job_dir / "raw_listings.json", raw_items)
 
@@ -338,5 +363,97 @@ def main() -> int:
     return 0
 
 
+def load_json(path: Path, default: Any) -> Any:
+    if not path.exists():
+        return default
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def reason_counts(items: list[dict[str, Any]]) -> dict[str, int]:
+    counter: Counter[str] = Counter()
+    for item in items:
+        for reason in item.get("reject_reasons", []):
+            counter[reason] += 1
+    return dict(counter.most_common())
+
+
+def diagnose_raw_html(job_dir: Path) -> list[str]:
+    html_path = job_dir / "raw_pages" / "page_1.html"
+    if not html_path.exists():
+        return []
+    html_text = html_path.read_text(encoding="utf-8", errors="replace")
+    findings = []
+    normalized_text = html_text.replace("\xa0", " ")
+    if "Доступ ограничен: проблема с IP" in normalized_text:
+        findings.append("access_restricted_ip")
+    if "Такой страницы не существует" in normalized_text:
+        findings.append("page_not_found")
+    state_data = extract_state_data(html_text)
+    status = state_data.get("status") or {}
+    if isinstance(status, dict) and status.get("code") == 404 and "page_not_found" not in findings:
+        findings.append("page_not_found")
+    if "подтвердите, что вы не робот" in html_text.lower():
+        findings.append("captcha")
+    return findings
+
+
+def analyze_run(run_dir: Path) -> dict[str, Any]:
+    run_report = load_json(run_dir / "run_report.json", {})
+    jobs = []
+    for job_dir in sorted(path for path in run_dir.iterdir() if path.is_dir()):
+        job_report = load_json(job_dir / "job_report.json", {})
+        snapshot = load_json(job_dir / "daily_snapshot.json", {})
+        rejected = load_json(job_dir / "rejected_listings.json", [])
+        unknown = load_json(job_dir / "unknown_listings.json", [])
+        jobs.append(
+            {
+                "job_code": job_dir.name,
+                "status": job_report.get("status"),
+                "http_status": job_report.get("http_status"),
+                "block_reason": job_report.get("block_reason"),
+                "error": job_report.get("error"),
+                "raw_count": snapshot.get("raw_count", job_report.get("items_found", 0)),
+                "normalized_count": snapshot.get(
+                    "normalized_count", job_report.get("items_normalized", 0)
+                ),
+                "relevant_count": snapshot.get(
+                    "relevant_count", job_report.get("items_relevant", 0)
+                ),
+                "unknown_count": snapshot.get("unknown_count", job_report.get("items_unknown", 0)),
+                "rejected_count": snapshot.get(
+                    "rejected_count", job_report.get("items_rejected", 0)
+                ),
+                "min_price": snapshot.get("min_price"),
+                "max_price": snapshot.get("max_price"),
+                "median_price": snapshot.get("median_price"),
+                "html_findings": diagnose_raw_html(job_dir),
+                "rejected_reason_counts": reason_counts(rejected),
+                "unknown_reason_counts": reason_counts(unknown),
+            }
+        )
+    return {
+        "run_id": run_report.get("run_id", run_dir.name),
+        "status": run_report.get("status"),
+        "started_at": run_report.get("started_at"),
+        "finished_at": run_report.get("finished_at"),
+        "jobs_total": run_report.get("jobs_total", len(jobs)),
+        "jobs": jobs,
+    }
+
+
+def print_run_analysis(run_dir: Path) -> int:
+    print(json.dumps(analyze_run(run_dir), ensure_ascii=False, indent=2))
+    return 0
+
+
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--analyze-run")
+    args, remaining = parser.parse_known_args()
+    if args.analyze_run:
+        raise SystemExit(print_run_analysis(Path(args.analyze_run)))
+
+    import sys
+
+    sys.argv = [sys.argv[0], *remaining]
     raise SystemExit(main())

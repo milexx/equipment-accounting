@@ -266,6 +266,7 @@ docs/30_clean_room_avito_parser_poc_results.md
 docs/31_price_monitoring_research_timeline_2026-06-17.md
 docs/32_price_monitoring_implementation_plan.md
 docs/33_price_monitoring_endurance_day_1.md
+docs/34_price_monitoring_endurance_day_2_plan.md
 ```
 
 Ключевые решения:
@@ -374,6 +375,18 @@ dell_r740: HTTP 200 no_data
 ```
 
 Решение после day 1: `continue_endurance_with_caution`.
+
+Offline-анализ day 1 уточнил:
+
+- `dell_r740` был не реальным `no_data`, а `page_not_found` в HTML при HTTP 200;
+- причина: неподходящий category URL `/all/servernoe_oborudovanie`;
+- для day 2 URL заменён на более широкий `/all?q=Dell+PowerEdge+R740`;
+- worker доработан: future `page_not_found` будет `parser_error`, а не `no_data`;
+- добавлена команда offline-анализа:
+
+```bash
+.venv/bin/python src/worker.py --analyze-run runs/{run_id}
+```
 
 Важно: не делать повторный live Avito run 2026-06-18. Следующий live run - 2026-06-19 или позже, один запуск в день.
 
