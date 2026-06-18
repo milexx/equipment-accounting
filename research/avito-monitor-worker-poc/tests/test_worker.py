@@ -306,6 +306,72 @@ class WorkerEnduranceDocTest(unittest.TestCase):
         self.assertIn("Не делать повторный запуск.", markdown)
 
 
+class WorkerGateSummaryTest(unittest.TestCase):
+    def test_render_gate_summary_recommends_continue_with_one_run(self) -> None:
+        summary = {
+            "runs_total": 1,
+            "runs_with_two_successes": 0,
+            "runs_with_majority_blocked_or_failed": 0,
+            "recommendation": "continue_endurance",
+            "runs": [
+                {
+                    "run_id": "run1",
+                    "started_at": "2026-06-18T00:00:00Z",
+                    "status": "partial_success",
+                    "jobs": [
+                        {"status": "success"},
+                        {"status": "blocked"},
+                        {"status": "no_data"},
+                    ],
+                }
+            ],
+            "job_totals": {
+                "lenovo_t14": {"success": 1},
+                "kyocera_m2040dn": {"blocked": 1},
+            },
+        }
+
+        markdown = worker.render_gate_summary(summary)
+
+        self.assertIn("Recommendation: `continue_endurance`.", markdown)
+        self.assertIn("| `run1` | 2026-06-18T00:00:00Z | `partial_success` | 1 | 1 | 0 |", markdown)
+        self.assertIn("- `lenovo_t14`: `success`: 1", markdown)
+
+    def test_summarize_gate_recommends_hold_when_failures_dominate_two_runs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            runs_dir = Path(tmp)
+            for index in [1, 2]:
+                run_dir = runs_dir / f"2026061{index}T010000Z"
+                run_dir.mkdir()
+                (run_dir / "run_report.json").write_text(
+                    json.dumps(
+                        {
+                            "run_id": run_dir.name,
+                            "started_at": f"2026-06-1{index}T01:00:00Z",
+                            "status": "partial_success",
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                for job_code, status in [
+                    ("job_a", "blocked"),
+                    ("job_b", "parser_error"),
+                    ("job_c", "success"),
+                ]:
+                    job_dir = run_dir / job_code
+                    job_dir.mkdir()
+                    (job_dir / "job_report.json").write_text(
+                        json.dumps({"status": status}),
+                        encoding="utf-8",
+                    )
+
+            summary = worker.summarize_gate(runs_dir)
+
+        self.assertEqual(summary["recommendation"], "hold_http_unstable_candidate")
+        self.assertEqual(summary["runs_total"], 2)
+        self.assertEqual(summary["runs_with_majority_blocked_or_failed"], 2)
+
+
 class WorkerLiveRunGuardTest(unittest.TestCase):
     def test_live_run_exists_for_date_ignores_offline_runs(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

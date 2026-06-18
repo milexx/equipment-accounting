@@ -92,6 +92,12 @@ Markdown-отчёт из сохранённого run:
 .venv/bin/python src/worker.py --write-endurance-doc runs/{run_id} --output ../../docs/34_price_monitoring_endurance_day_2.md --day 2 --date 2026-06-19
 ```
 
+Сводка gate по всем live runs:
+
+```bash
+.venv/bin/python src/worker.py --write-gate-summary --runs-dir runs --output ../../docs/37_price_monitoring_gate_summary.md
+```
+
 Пересчёт сохранённого HTML без сетевого запроса:
 
 ```bash

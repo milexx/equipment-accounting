@@ -796,6 +796,119 @@ def write_endurance_doc(
     return 0
 
 
+def list_live_run_dirs(runs_dir: Path) -> list[Path]:
+    if not runs_dir.exists():
+        return []
+    return [
+        path
+        for path in sorted(runs_dir.iterdir())
+        if path.is_dir() and not path.name.endswith("_offline") and (path / "run_report.json").exists()
+    ]
+
+
+def summarize_gate(runs_dir: Path) -> dict[str, Any]:
+    analyses = [analyze_run(run_dir) for run_dir in list_live_run_dirs(runs_dir)]
+    job_totals: dict[str, Counter[str]] = {}
+    for analysis in analyses:
+        for job in analysis["jobs"]:
+            job_totals.setdefault(job["job_code"], Counter())[job.get("status") or "unknown"] += 1
+
+    days_total = len(analyses)
+    runs_with_two_successes = sum(
+        1 for analysis in analyses if sum(1 for job in analysis["jobs"] if job.get("status") == "success") >= 2
+    )
+    runs_with_majority_blocked_or_failed = sum(
+        1
+        for analysis in analyses
+        if sum(
+            1
+            for job in analysis["jobs"]
+            if job.get("status") in {"blocked", "captcha", "parser_error"}
+        )
+        >= 2
+    )
+
+    if days_total >= 3 and runs_with_two_successes >= 2 and runs_with_majority_blocked_or_failed == 0:
+        recommendation = "go_worker_prototype_candidate"
+    elif days_total >= 2 and runs_with_majority_blocked_or_failed >= 2:
+        recommendation = "hold_http_unstable_candidate"
+    else:
+        recommendation = "continue_endurance"
+
+    return {
+        "runs_total": days_total,
+        "runs_with_two_successes": runs_with_two_successes,
+        "runs_with_majority_blocked_or_failed": runs_with_majority_blocked_or_failed,
+        "recommendation": recommendation,
+        "runs": analyses,
+        "job_totals": {
+            job_code: dict(counter.most_common()) for job_code, counter in sorted(job_totals.items())
+        },
+    }
+
+
+def render_gate_summary(summary: dict[str, Any]) -> str:
+    lines = [
+        "# Gate Summary: Price Monitoring Endurance",
+        "",
+        f"Recommendation: `{summary['recommendation']}`.",
+        "",
+        "```text",
+        f"runs_total: {summary['runs_total']}",
+        f"runs_with_two_successes: {summary['runs_with_two_successes']}",
+        f"runs_with_majority_blocked_or_failed: {summary['runs_with_majority_blocked_or_failed']}",
+        "```",
+        "",
+        "## Runs",
+        "",
+        "| Run | Started | Status | Success | Blocked/Captcha | Parser Errors |",
+        "|---|---|---|---:|---:|---:|",
+    ]
+    for analysis in summary["runs"]:
+        success_count = sum(1 for job in analysis["jobs"] if job.get("status") == "success")
+        blocked_count = sum(1 for job in analysis["jobs"] if job.get("status") in {"blocked", "captcha"})
+        parser_error_count = sum(1 for job in analysis["jobs"] if job.get("status") == "parser_error")
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    f"`{analysis['run_id']}`",
+                    value_or_dash(analysis.get("started_at")),
+                    f"`{analysis.get('status')}`",
+                    str(success_count),
+                    str(blocked_count),
+                    str(parser_error_count),
+                ]
+            )
+            + " |"
+        )
+
+    lines.extend(["", "## Job Totals", ""])
+    if not summary["job_totals"]:
+        lines.append("No live runs found.")
+    for job_code, status_counts in summary["job_totals"].items():
+        status_text = ", ".join(f"`{status}`: {count}" for status, count in status_counts.items())
+        lines.append(f"- `{job_code}`: {status_text}")
+
+    lines.extend(["", "## Gate Rules", ""])
+    lines.extend(
+        [
+            "- `go_worker_prototype_candidate`: at least 3 runs, at least 2 runs with 2+ successful jobs, and no run where blocked/parser errors dominate.",
+            "- `hold_http_unstable_candidate`: at least 2 runs where blocked/parser errors dominate.",
+            "- `continue_endurance`: not enough evidence yet.",
+        ]
+    )
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def write_gate_summary(runs_dir: Path, output_path: Path) -> int:
+    report = render_gate_summary(summarize_gate(runs_dir))
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(report, encoding="utf-8")
+    print(str(output_path))
+    return 0
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="config/search_jobs.json")
@@ -803,6 +916,7 @@ if __name__ == "__main__":
     parser.add_argument("--analyze-run")
     parser.add_argument("--write-markdown-report")
     parser.add_argument("--write-endurance-doc")
+    parser.add_argument("--write-gate-summary", action="store_true")
     parser.add_argument("--output")
     parser.add_argument("--day")
     parser.add_argument("--date")
@@ -844,6 +958,10 @@ if __name__ == "__main__":
                 args.next_action,
             )
         )
+    if args.write_gate_summary:
+        if not args.output:
+            raise SystemExit("--output is required with --write-gate-summary")
+        raise SystemExit(write_gate_summary(Path(args.runs_dir), Path(args.output)))
     if args.from_html:
         if not args.job_code:
             raise SystemExit("--job-code is required with --from-html")
