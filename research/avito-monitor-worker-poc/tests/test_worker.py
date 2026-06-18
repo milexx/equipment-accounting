@@ -227,6 +227,71 @@ class WorkerConfigValidationTest(unittest.TestCase):
         self.assertIn("jobs[1].code is duplicated: job1", errors)
 
 
+class WorkerPreflightTest(unittest.TestCase):
+    def valid_config_path(self, root: Path) -> Path:
+        config_path = root / "search_jobs.json"
+        config_path.write_text(
+            json.dumps(
+                {
+                    "request_delay_seconds": 5,
+                    "timeout_seconds": 20,
+                    "jobs": [
+                        {
+                            "code": "job1",
+                            "position_name": "Job 1",
+                            "source": "avito",
+                            "search_url": "https://www.avito.ru/all?q=Job+1",
+                            "required_terms": ["job"],
+                            "negative_terms": [],
+                            "price_min": 1,
+                            "price_max": 100,
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        return config_path
+
+    def test_preflight_ready_without_same_day_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config_path = self.valid_config_path(root)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+
+            exit_code, payload = worker.build_preflight(config_path, runs_dir)
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(payload["status"], "ready")
+        self.assertTrue(payload["config"]["valid"])
+
+    def test_preflight_blocks_same_day_live_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config_path = self.valid_config_path(root)
+            runs_dir = root / "runs"
+            today = worker.utc_now().date().isoformat()
+            run_dir = runs_dir / f"{today.replace('-', '')}T010000Z"
+            run_dir.mkdir(parents=True)
+            (run_dir / "run_report.json").write_text(
+                json.dumps(
+                    {
+                        "run_id": run_dir.name,
+                        "started_at": f"{today}T01:00:00Z",
+                        "status": "partial_success",
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            exit_code, payload = worker.build_preflight(config_path, runs_dir)
+
+        self.assertEqual(exit_code, 3)
+        self.assertEqual(payload["status"], "blocked_by_same_day_guard")
+        self.assertTrue(payload["same_day_guard"]["live_run_exists"])
+
+
 class WorkerMarkdownReportTest(unittest.TestCase):
     def test_render_markdown_report_includes_summary_table_and_reasons(self) -> None:
         analysis = {

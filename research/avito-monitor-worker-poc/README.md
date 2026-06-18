@@ -32,6 +32,12 @@ cp config/search_jobs.example.json config/search_jobs.json
 
 ## Запуск
 
+Перед live-запуском:
+
+```bash
+.venv/bin/python src/worker.py --preflight --config config/search_jobs.json --runs-dir runs
+```
+
 ```bash
 .venv/bin/python src/worker.py --config config/search_jobs.json --runs-dir runs
 ```

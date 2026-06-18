@@ -482,6 +482,42 @@ def print_config_validation(config_path: Path) -> int:
     return 0 if is_valid else 2
 
 
+def build_preflight(config_path: Path, runs_dir: Path) -> tuple[int, dict[str, Any]]:
+    config = read_config(config_path)
+    config_is_valid, config_errors, config_summary = validate_config(config)
+    today = utc_now().date().isoformat()
+    live_exists, existing_run = live_run_exists_for_date(runs_dir, today)
+    status = "ready"
+    exit_code = 0
+    if not config_is_valid:
+        status = "invalid_config"
+        exit_code = 2
+    elif live_exists:
+        status = "blocked_by_same_day_guard"
+        exit_code = 3
+    return exit_code, {
+        "status": status,
+        "utc_date": today,
+        "config": {
+            "path": str(config_path),
+            "valid": config_is_valid,
+            "errors": config_errors,
+            "summary": config_summary,
+        },
+        "same_day_guard": {
+            "live_run_exists": live_exists,
+            "existing_run": existing_run,
+        },
+        "next_live_command": ".venv/bin/python src/worker.py --config config/search_jobs.json --runs-dir runs",
+    }
+
+
+def print_preflight(config_path: Path, runs_dir: Path) -> int:
+    exit_code, payload = build_preflight(config_path, runs_dir)
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return exit_code
+
+
 def load_json(path: Path, default: Any) -> Any:
     if not path.exists():
         return default
@@ -923,6 +959,7 @@ if __name__ == "__main__":
     parser.add_argument("--decision")
     parser.add_argument("--next-action")
     parser.add_argument("--dry-run-config", action="store_true")
+    parser.add_argument("--preflight", action="store_true")
     parser.add_argument("--from-html")
     parser.add_argument("--job-code")
     args, remaining = parser.parse_known_args()
@@ -930,6 +967,8 @@ if __name__ == "__main__":
 
     if args.dry_run_config:
         raise SystemExit(print_config_validation(config_path))
+    if args.preflight:
+        raise SystemExit(print_preflight(config_path, Path(args.runs_dir)))
     if args.analyze_run:
         raise SystemExit(print_run_analysis(Path(args.analyze_run)))
     if args.write_markdown_report:

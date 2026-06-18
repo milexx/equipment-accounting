@@ -393,6 +393,7 @@ Offline-анализ day 1 уточнил:
 .venv/bin/python src/worker.py --write-gate-summary --runs-dir runs --output ../../docs/37_price_monitoring_gate_summary.md
 .venv/bin/python src/worker.py --from-html runs/{run_id}/{job_code}/raw_pages/page_1.html --job-code {job_code} --config config/search_jobs.json --runs-dir runs
 .venv/bin/python src/worker.py --dry-run-config --config config/search_jobs.json
+.venv/bin/python src/worker.py --preflight --config config/search_jobs.json --runs-dir runs
 ```
 
 - добавлены offline-тесты POC:

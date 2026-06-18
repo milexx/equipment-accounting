@@ -60,6 +60,7 @@ Backend-модели, Alembic-миграции и UI `/pricing` не начин�
 cd research/avito-monitor-worker-poc
 .venv/bin/python -m unittest discover -s tests
 .venv/bin/python src/worker.py --dry-run-config --config config/search_jobs.json
+.venv/bin/python src/worker.py --preflight --config config/search_jobs.json --runs-dir runs
 ```
 
 Запуск:
