@@ -270,6 +270,7 @@ docs/34_price_monitoring_endurance_day_2_plan.md
 docs/35_price_monitoring_database_design.md
 docs/36_price_monitoring_gate_acceptance.md
 docs/38_price_monitoring_day2_operator_runbook.md
+docs/39_price_monitoring_risk_and_decision_matrix.md
 ```
 
 Ключевые решения:
@@ -416,6 +417,7 @@ blocked_by_same_day_guard
 - подготовлен предварительный проект БД без миграций: `docs/35_price_monitoring_database_design.md`;
 - подготовлен gate/acceptance checklist: `docs/36_price_monitoring_gate_acceptance.md`;
 - подготовлен operator runbook для day 2: `docs/38_price_monitoring_day2_operator_runbook.md`;
+- подготовлена risk/decision matrix: `docs/39_price_monitoring_risk_and_decision_matrix.md`;
 - правило не изменилось: backend-модели, Alembic и UI `/pricing` не начинать до решения `go_worker_prototype`.
 
 ## Точка Возврата На 2026-06-17: Демо-Меню
