@@ -262,6 +262,50 @@ class WorkerMarkdownReportTest(unittest.TestCase):
         self.assertIn("- `negative_term:экран`: 7", markdown)
 
 
+class WorkerEnduranceDocTest(unittest.TestCase):
+    def test_render_endurance_doc_includes_decision_and_observations(self) -> None:
+        analysis = {
+            "run_id": "run2",
+            "status": "partial_success",
+            "started_at": "2026-06-19T00:00:00Z",
+            "finished_at": "2026-06-19T00:00:10Z",
+            "jobs_total": 1,
+            "jobs": [
+                {
+                    "job_code": "kyocera_m2040dn",
+                    "status": "blocked",
+                    "http_status": 403,
+                    "block_reason": "http_403",
+                    "error": None,
+                    "raw_count": 0,
+                    "normalized_count": 0,
+                    "relevant_count": 0,
+                    "unknown_count": 0,
+                    "rejected_count": 0,
+                    "min_price": None,
+                    "max_price": None,
+                    "median_price": None,
+                    "html_findings": ["access_restricted_ip"],
+                    "rejected_reason_counts": {},
+                    "unknown_reason_counts": {},
+                }
+            ],
+        }
+
+        markdown = worker.render_endurance_doc(
+            analysis,
+            day="2",
+            date="2026-06-19",
+            decision="hold_http_unstable_candidate",
+            next_action="Не делать повторный запуск.",
+        )
+
+        self.assertIn("# Endurance Test Оценщика: День 2", markdown)
+        self.assertIn("| `kyocera_m2040dn` | 403 | `blocked` |", markdown)
+        self.assertIn("hold_http_unstable_candidate", markdown)
+        self.assertIn("Не делать повторный запуск.", markdown)
+
+
 class WorkerLiveRunGuardTest(unittest.TestCase):
     def test_live_run_exists_for_date_ignores_offline_runs(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

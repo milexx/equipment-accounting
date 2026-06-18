@@ -86,6 +86,12 @@ Markdown-отчёт из сохранённого run:
 .venv/bin/python src/worker.py --write-markdown-report runs/20260618T075423Z --output runs/20260618T075423Z/offline_report.md
 ```
 
+Документ endurance day report для `docs/`:
+
+```bash
+.venv/bin/python src/worker.py --write-endurance-doc runs/{run_id} --output ../../docs/34_price_monitoring_endurance_day_2.md --day 2 --date 2026-06-19
+```
+
 Пересчёт сохранённого HTML без сетевого запроса:
 
 ```bash

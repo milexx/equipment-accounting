@@ -57,6 +57,7 @@ Worker остановит повторный live run в тот же UTC-ден�
 ```bash
 .venv/bin/python src/worker.py --analyze-run runs/{run_id}
 .venv/bin/python src/worker.py --write-markdown-report runs/{run_id} --output runs/{run_id}/offline_report.md
+.venv/bin/python src/worker.py --write-endurance-doc runs/{run_id} --output ../../docs/34_price_monitoring_endurance_day_2.md --day 2 --date 2026-06-19
 ```
 
 Если перед запуском локальный ignored config устарел:

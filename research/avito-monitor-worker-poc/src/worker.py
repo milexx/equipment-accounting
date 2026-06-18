@@ -682,13 +682,132 @@ def write_markdown_report(run_dir: Path, output_path: Path) -> int:
     return 0
 
 
+def guess_recommended_decision(analysis: dict[str, Any]) -> str:
+    jobs = analysis["jobs"]
+    success_count = sum(1 for job in jobs if job.get("status") == "success")
+    blocked_count = sum(1 for job in jobs if job.get("status") in {"blocked", "captcha"})
+    parser_error_count = sum(1 for job in jobs if job.get("status") == "parser_error")
+    if success_count >= 2 and blocked_count == 0:
+        return "continue_endurance_day_3"
+    if blocked_count + parser_error_count >= 2:
+        return "hold_http_unstable_candidate"
+    return "continue_endurance_with_caution"
+
+
+def render_endurance_doc(
+    analysis: dict[str, Any],
+    day: str,
+    date: str,
+    decision: str | None = None,
+    next_action: str | None = None,
+) -> str:
+    effective_decision = decision or guess_recommended_decision(analysis)
+    effective_next_action = next_action or "Продолжить по gate checklist."
+    lines = [
+        f"# Endurance Test Оценщика: День {day}",
+        "",
+        f"Дата: {date}.",
+        "",
+        f"Статус: `{analysis.get('status')}`.",
+        "",
+        "## Live Run",
+        "",
+        "```text",
+        f"run_id: {analysis.get('run_id')}",
+        f"started_at: {analysis.get('started_at')}",
+        f"finished_at: {analysis.get('finished_at')}",
+        f"status: {analysis.get('status')}",
+        f"jobs_total: {analysis.get('jobs_total')}",
+        "```",
+        "",
+        "## Результаты По Позициям",
+        "",
+        "| Позиция | HTTP | Статус | Raw | Normalized | Relevant | Unknown | Rejected | Min | Max | Median | Findings |",
+        "|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---|",
+    ]
+    for job in analysis["jobs"]:
+        findings = ", ".join(job["html_findings"]) if job["html_findings"] else "-"
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    f"`{job['job_code']}`",
+                    value_or_dash(job.get("http_status")),
+                    f"`{job.get('status')}`",
+                    value_or_dash(job.get("raw_count")),
+                    value_or_dash(job.get("normalized_count")),
+                    value_or_dash(job.get("relevant_count")),
+                    value_or_dash(job.get("unknown_count")),
+                    value_or_dash(job.get("rejected_count")),
+                    value_or_dash(job.get("min_price")),
+                    value_or_dash(job.get("max_price")),
+                    value_or_dash(job.get("median_price")),
+                    findings,
+                ]
+            )
+            + " |"
+        )
+
+    lines.extend(["", "## Наблюдения", ""])
+    for job in analysis["jobs"]:
+        details = []
+        if job.get("block_reason"):
+            details.append(f"block_reason: `{job['block_reason']}`")
+        if job.get("error"):
+            details.append(f"error: `{job['error']}`")
+        if job["html_findings"]:
+            details.append("findings: " + ", ".join(f"`{item}`" for item in job["html_findings"]))
+        if job["rejected_reason_counts"]:
+            top_reason, top_count = next(iter(job["rejected_reason_counts"].items()))
+            details.append(f"top rejected reason: `{top_reason}` ({top_count})")
+        detail_text = "; ".join(details) if details else "без дополнительных замечаний"
+        lines.append(f"- `{job['job_code']}`: `{job.get('status')}`, {detail_text}.")
+
+    lines.extend(
+        [
+            "",
+            "## Решение После Запуска",
+            "",
+            "```text",
+            effective_decision,
+            "```",
+            "",
+            "## Следующий Шаг",
+            "",
+            effective_next_action,
+            "",
+        ]
+    )
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def write_endurance_doc(
+    run_dir: Path,
+    output_path: Path,
+    day: str,
+    date: str,
+    decision: str | None,
+    next_action: str | None,
+) -> int:
+    report = render_endurance_doc(analyze_run(run_dir), day, date, decision, next_action)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(report, encoding="utf-8")
+    print(str(output_path))
+    return 0
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="config/search_jobs.json")
     parser.add_argument("--runs-dir", default="runs")
     parser.add_argument("--analyze-run")
     parser.add_argument("--write-markdown-report")
+    parser.add_argument("--write-endurance-doc")
     parser.add_argument("--output")
+    parser.add_argument("--day")
+    parser.add_argument("--date")
+    parser.add_argument("--decision")
+    parser.add_argument("--next-action")
     parser.add_argument("--dry-run-config", action="store_true")
     parser.add_argument("--from-html")
     parser.add_argument("--job-code")
@@ -703,6 +822,28 @@ if __name__ == "__main__":
         if not args.output:
             raise SystemExit("--output is required with --write-markdown-report")
         raise SystemExit(write_markdown_report(Path(args.write_markdown_report), Path(args.output)))
+    if args.write_endurance_doc:
+        missing = [
+            name
+            for name, value in [
+                ("--output", args.output),
+                ("--day", args.day),
+                ("--date", args.date),
+            ]
+            if not value
+        ]
+        if missing:
+            raise SystemExit(", ".join(missing) + " required with --write-endurance-doc")
+        raise SystemExit(
+            write_endurance_doc(
+                Path(args.write_endurance_doc),
+                Path(args.output),
+                args.day,
+                args.date,
+                args.decision,
+                args.next_action,
+            )
+        )
     if args.from_html:
         if not args.job_code:
             raise SystemExit("--job-code is required with --from-html")
