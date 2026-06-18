@@ -264,6 +264,7 @@ docs/28_duff89_parser_avito_poc_results.md
 docs/29_clean_room_avito_parser_design.md
 docs/30_clean_room_avito_parser_poc_results.md
 docs/31_price_monitoring_research_timeline_2026-06-17.md
+docs/32_price_monitoring_implementation_plan.md
 ```
 
 Ключевые решения:
@@ -352,6 +353,14 @@ median_price: 23995
    - `go_worker_prototype`;
    - `hold_http_unstable`;
    - `browser_profile_research`.
+
+Реализация разложена в отдельный инженерный план:
+
+```text
+docs/32_price_monitoring_implementation_plan.md
+```
+
+Главное правило плана: до `go_worker_prototype` после endurance test не переносить модуль в основное приложение и не начинать миграции/UI `/pricing`.
 
 ## Точка Возврата На 2026-06-17: Демо-Меню
 
