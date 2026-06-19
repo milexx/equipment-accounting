@@ -22,7 +22,7 @@ Backend-модели, Alembic-миграции и UI `/pricing` не начин�
 
 Можно переходить к backend-скелету, если выполнены все условия:
 
-- выполнено минимум 3 live day run;
+- выполнено минимум 3 official live day run;
 - live run делается не чаще 1 раза в день;
 - минимум 2 из 3 позиций дают пригодные данные в большинстве запусков;
 - блокировки `403`, `429`, CAPTCHA не доминируют над успешными позициями;
@@ -30,6 +30,8 @@ Backend-модели, Alembic-миграции и UI `/pricing` не начин�
 - offline-анализатор формирует таблицу результатов;
 - reject/unknown причины понятны и не скрывают очевидно релевантные объявления;
 - нет необходимости в proxy rotation, CAPTCHA bypass или платном data provider.
+
+Official live day run - это запуск, который реально дошёл до Avito. Infrastructure attempts до обращения к Avito, например DNS/network sandbox errors, не считаются official endurance day и не должны влиять на gate recommendation.
 
 ## 3. Условия `hold_http_unstable`
 
@@ -52,7 +54,7 @@ Backend-модели, Alembic-миграции и UI `/pricing` не начин�
 - не планируется proxy rotation;
 - отдельный браузерный профиль можно изолировать от основной системы.
 
-## 5. Day 2 Checklist
+## 5. Day 3 Checklist
 
 Перед запуском:
 
@@ -76,13 +78,13 @@ cd research/avito-monitor-worker-poc
 ```bash
 .venv/bin/python src/worker.py --analyze-run runs/{run_id}
 .venv/bin/python src/worker.py --write-markdown-report runs/{run_id} --output runs/{run_id}/offline_report.md
-.venv/bin/python src/worker.py --write-endurance-doc runs/{run_id} --output ../../docs/34_price_monitoring_endurance_day_2.md --day 2 --date 2026-06-19
+.venv/bin/python src/worker.py --write-endurance-doc runs/{run_id} --output ../../docs/44_price_monitoring_endurance_day_3.md --day 3 --date 2026-06-20
 .venv/bin/python src/worker.py --write-gate-summary --runs-dir runs --output ../../docs/37_price_monitoring_gate_summary.md
 ```
 
-В git добавить только markdown-документ day 2, не raw HTML и не JSON runtime.
+В git добавить только markdown-документы, не raw HTML и не JSON runtime.
 
-## 6. Шаблон Решения После Day 2
+## 6. Шаблон Решения После Day 3
 
 ```text
 date:
@@ -99,9 +101,11 @@ next_action:
 
 Возможные `decision`:
 
-- `continue_endurance_day_3`;
+- `continue_endurance_day_4`;
+- `go_worker_prototype_candidate`;
 - `hold_http_unstable`;
 - `adjust_queries_offline`;
+- `adjust_filters_offline`;
 - `browser_profile_research_candidate`.
 
 ## 7. Acceptance Для Research-Фазы

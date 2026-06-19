@@ -274,6 +274,9 @@ docs/37_price_monitoring_gate_summary.md
 docs/38_price_monitoring_day2_operator_runbook.md
 docs/39_price_monitoring_risk_and_decision_matrix.md
 docs/40_price_monitoring_endurance_day_1_2_comparison.md
+docs/41_price_monitoring_day3_operator_runbook.md
+docs/42_price_monitoring_dell_r740_filter_review.md
+docs/43_price_monitoring_post_gate_integration_backlog.md
 ```
 
 Ключевые решения:
@@ -414,6 +417,14 @@ Offline-сравнение day 1 / day 2:
 - technical sandbox run `20260618T075301Z` не считать official endurance day, потому что он не дошёл до Avito из-за DNS/network sandbox;
 - текущая интерпретация gate: `continue_endurance_day_3`, не `go_worker_prototype` и не `hold_http_unstable`;
 - детали: `docs/40_price_monitoring_endurance_day_1_2_comparison.md`.
+
+Офлайн-подготовка после day 2:
+
+- подготовлен runbook для day 3: `docs/41_price_monitoring_day3_operator_runbook.md`;
+- выполнен filter review для `dell_r740`: `docs/42_price_monitoring_dell_r740_filter_review.md`;
+- broad negative terms для `dell_r740` смягчены в `search_jobs.example.json` и локальном ignored `search_jobs.json`;
+- уточнён gate checklist: official endurance days не включают infrastructure attempts;
+- подготовлен backlog интеграции после `go_worker_prototype`: `docs/43_price_monitoring_post_gate_integration_backlog.md`.
 
 Offline-анализ day 1 уточнил:
 
