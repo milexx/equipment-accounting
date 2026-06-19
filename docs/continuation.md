@@ -273,6 +273,7 @@ docs/36_price_monitoring_gate_acceptance.md
 docs/37_price_monitoring_gate_summary.md
 docs/38_price_monitoring_day2_operator_runbook.md
 docs/39_price_monitoring_risk_and_decision_matrix.md
+docs/40_price_monitoring_endurance_day_1_2_comparison.md
 ```
 
 Ключевые решения:
@@ -404,6 +405,13 @@ runs_with_majority_blocked_or_failed: 1
 ```
 
 Важно: не делать повторный live Avito run 2026-06-19. Следующий live run - 2026-06-20 или позже, один запуск в UTC-день.
+
+Offline-сравнение day 1 / day 2:
+
+- official endurance days: `20260618T075423Z`, `20260619T082828Z`;
+- technical sandbox run `20260618T075301Z` не считать official endurance day, потому что он не дошёл до Avito из-за DNS/network sandbox;
+- текущая интерпретация gate: `continue_endurance_day_3`, не `go_worker_prototype` и не `hold_http_unstable`;
+- детали: `docs/40_price_monitoring_endurance_day_1_2_comparison.md`.
 
 Offline-анализ day 1 уточнил:
 
