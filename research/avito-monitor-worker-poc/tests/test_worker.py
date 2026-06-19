@@ -374,7 +374,9 @@ class WorkerEnduranceDocTest(unittest.TestCase):
 class WorkerGateSummaryTest(unittest.TestCase):
     def test_render_gate_summary_recommends_continue_with_one_run(self) -> None:
         summary = {
+            "runs_seen_total": 1,
             "runs_total": 1,
+            "runs_excluded": 0,
             "runs_with_two_successes": 0,
             "runs_with_majority_blocked_or_failed": 0,
             "recommendation": "continue_endurance",
@@ -390,6 +392,7 @@ class WorkerGateSummaryTest(unittest.TestCase):
                     ],
                 }
             ],
+            "excluded_runs": [],
             "job_totals": {
                 "lenovo_t14": {"success": 1},
                 "kyocera_m2040dn": {"blocked": 1},
@@ -435,6 +438,72 @@ class WorkerGateSummaryTest(unittest.TestCase):
         self.assertEqual(summary["recommendation"], "hold_http_unstable_candidate")
         self.assertEqual(summary["runs_total"], 2)
         self.assertEqual(summary["runs_with_majority_blocked_or_failed"], 2)
+
+    def test_summarize_gate_excludes_infrastructure_attempts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            runs_dir = Path(tmp)
+            infrastructure_run = runs_dir / "20260618T075301Z"
+            infrastructure_run.mkdir()
+            (infrastructure_run / "run_report.json").write_text(
+                json.dumps(
+                    {
+                        "run_id": infrastructure_run.name,
+                        "started_at": "2026-06-18T07:53:01Z",
+                        "status": "partial_success",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            for job_code in ["job_a", "job_b", "job_c"]:
+                job_dir = infrastructure_run / job_code
+                job_dir.mkdir()
+                (job_dir / "job_report.json").write_text(
+                    json.dumps(
+                        {
+                            "status": "parser_error",
+                            "error": "DNSError: Could not resolve host: www.avito.ru",
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+
+            for index, statuses in enumerate(
+                [
+                    ["success", "blocked", "no_data"],
+                    ["success", "success", "success"],
+                ],
+                start=1,
+            ):
+                run_dir = runs_dir / f"2026061{index}T010000Z"
+                run_dir.mkdir()
+                (run_dir / "run_report.json").write_text(
+                    json.dumps(
+                        {
+                            "run_id": run_dir.name,
+                            "started_at": f"2026-06-1{index}T01:00:00Z",
+                            "status": "success" if index == 2 else "partial_success",
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                for job_index, status in enumerate(statuses):
+                    job_dir = run_dir / f"job_{job_index}"
+                    job_dir.mkdir()
+                    (job_dir / "job_report.json").write_text(
+                        json.dumps({"status": status, "http_status": 200}),
+                        encoding="utf-8",
+                    )
+
+            summary = worker.summarize_gate(runs_dir)
+            markdown = worker.render_gate_summary(summary)
+
+        self.assertEqual(summary["runs_seen_total"], 3)
+        self.assertEqual(summary["runs_total"], 2)
+        self.assertEqual(summary["runs_excluded"], 1)
+        self.assertEqual(summary["excluded_runs"][0]["run_id"], "20260618T075301Z")
+        self.assertEqual(summary["recommendation"], "continue_endurance")
+        self.assertIn("## Excluded Runs", markdown)
+        self.assertIn("| `20260618T075301Z` | 2026-06-18T07:53:01Z | `partial_success` | `infrastructure_attempt` |", markdown)
 
 
 class WorkerLiveRunGuardTest(unittest.TestCase):

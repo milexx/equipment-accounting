@@ -842,8 +842,41 @@ def list_live_run_dirs(runs_dir: Path) -> list[Path]:
     ]
 
 
+def is_infrastructure_attempt(analysis: dict[str, Any]) -> bool:
+    jobs = analysis.get("jobs") or []
+    if not jobs:
+        return False
+    network_error_markers = [
+        "could not resolve host",
+        "failed to connect",
+        "connection timed out",
+        "network is unreachable",
+        "temporary failure in name resolution",
+    ]
+    for job in jobs:
+        if job.get("status") != "parser_error":
+            return False
+        if job.get("http_status") is not None:
+            return False
+        error = str(job.get("error") or "").lower()
+        if not any(marker in error for marker in network_error_markers):
+            return False
+    return True
+
+
 def summarize_gate(runs_dir: Path) -> dict[str, Any]:
-    analyses = [analyze_run(run_dir) for run_dir in list_live_run_dirs(runs_dir)]
+    all_analyses = [analyze_run(run_dir) for run_dir in list_live_run_dirs(runs_dir)]
+    excluded_runs = [
+        {
+            "run_id": analysis["run_id"],
+            "started_at": analysis.get("started_at"),
+            "status": analysis.get("status"),
+            "reason": "infrastructure_attempt",
+        }
+        for analysis in all_analyses
+        if is_infrastructure_attempt(analysis)
+    ]
+    analyses = [analysis for analysis in all_analyses if not is_infrastructure_attempt(analysis)]
     job_totals: dict[str, Counter[str]] = {}
     for analysis in analyses:
         for job in analysis["jobs"]:
@@ -872,11 +905,14 @@ def summarize_gate(runs_dir: Path) -> dict[str, Any]:
         recommendation = "continue_endurance"
 
     return {
+        "runs_seen_total": len(all_analyses),
         "runs_total": days_total,
+        "runs_excluded": len(excluded_runs),
         "runs_with_two_successes": runs_with_two_successes,
         "runs_with_majority_blocked_or_failed": runs_with_majority_blocked_or_failed,
         "recommendation": recommendation,
         "runs": analyses,
+        "excluded_runs": excluded_runs,
         "job_totals": {
             job_code: dict(counter.most_common()) for job_code, counter in sorted(job_totals.items())
         },
@@ -890,7 +926,9 @@ def render_gate_summary(summary: dict[str, Any]) -> str:
         f"Recommendation: `{summary['recommendation']}`.",
         "",
         "```text",
+        f"runs_seen_total: {summary.get('runs_seen_total', summary['runs_total'])}",
         f"runs_total: {summary['runs_total']}",
+        f"runs_excluded: {summary.get('runs_excluded', 0)}",
         f"runs_with_two_successes: {summary['runs_with_two_successes']}",
         f"runs_with_majority_blocked_or_failed: {summary['runs_with_majority_blocked_or_failed']}",
         "```",
@@ -918,6 +956,24 @@ def render_gate_summary(summary: dict[str, Any]) -> str:
             )
             + " |"
         )
+
+    excluded_runs = summary.get("excluded_runs") or []
+    if excluded_runs:
+        lines.extend(["", "## Excluded Runs", ""])
+        lines.extend(["| Run | Started | Status | Reason |", "|---|---|---|---|"])
+        for run in excluded_runs:
+            lines.append(
+                "| "
+                + " | ".join(
+                    [
+                        f"`{run['run_id']}`",
+                        value_or_dash(run.get("started_at")),
+                        f"`{run.get('status')}`",
+                        f"`{run.get('reason')}`",
+                    ]
+                )
+                + " |"
+            )
 
     lines.extend(["", "## Job Totals", ""])
     if not summary["job_totals"]:

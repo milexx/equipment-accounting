@@ -399,9 +399,11 @@ Gate summary:
 
 ```text
 recommendation: continue_endurance
-runs_total: 3
+runs_seen_total: 3
+runs_total: 2
+runs_excluded: 1
 runs_with_two_successes: 1
-runs_with_majority_blocked_or_failed: 1
+runs_with_majority_blocked_or_failed: 0
 ```
 
 Важно: не делать повторный live Avito run 2026-06-19. Следующий live run - 2026-06-20 или позже, один запуск в UTC-день.
