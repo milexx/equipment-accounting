@@ -267,8 +267,10 @@ docs/31_price_monitoring_research_timeline_2026-06-17.md
 docs/32_price_monitoring_implementation_plan.md
 docs/33_price_monitoring_endurance_day_1.md
 docs/34_price_monitoring_endurance_day_2_plan.md
+docs/34_price_monitoring_endurance_day_2.md
 docs/35_price_monitoring_database_design.md
 docs/36_price_monitoring_gate_acceptance.md
+docs/37_price_monitoring_gate_summary.md
 docs/38_price_monitoring_day2_operator_runbook.md
 docs/39_price_monitoring_risk_and_decision_matrix.md
 ```
@@ -379,6 +381,29 @@ dell_r740: HTTP 200 no_data
 ```
 
 Решение после day 1: `continue_endurance_with_caution`.
+
+Endurance day 2 выполнен 2026-06-19:
+
+```text
+run_id: 20260619T082828Z
+status: success
+kyocera_m2040dn: HTTP 200 success, raw 50, relevant 41, median 25000
+lenovo_t14: HTTP 200 success, raw 50, relevant 30, median 27995
+dell_r740: HTTP 200 success, raw 50, relevant 11, median 139500
+```
+
+Решение после day 2: `continue_endurance_day_3`.
+
+Gate summary:
+
+```text
+recommendation: continue_endurance
+runs_total: 3
+runs_with_two_successes: 1
+runs_with_majority_blocked_or_failed: 1
+```
+
+Важно: не делать повторный live Avito run 2026-06-19. Следующий live run - 2026-06-20 или позже, один запуск в UTC-день.
 
 Offline-анализ day 1 уточнил:
 
