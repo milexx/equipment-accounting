@@ -90,3 +90,53 @@
 - На 2026-06-20 или позже выполнить Day 3 по тем же правилам: один live run в UTC-день, без cookies/proxy/CAPTCHA bypass.
 - После Day 3 сравнить устойчивость `kyocera_m2040dn`, стабильность `lenovo_t14` и качество `dell_r740`.
 - Не выбирать `go_worker_prototype` до 3-5 official endurance days и явного прохождения gate criteria.
+
+## 2026-06-19, второй блок
+
+Контекст: офлайн-доработки после Day 2, без новых live Avito-запросов.
+
+Что сделано:
+
+- Доработан gate summary: infrastructure attempts больше не смешиваются с official endurance days.
+- `20260618T075301Z` теперь выводится как excluded run с причиной `infrastructure_attempt`.
+- Gate summary теперь считает:
+  - `runs_seen_total: 3`;
+  - `runs_total: 2`;
+  - `runs_excluded: 1`;
+  - `runs_with_majority_blocked_or_failed: 0`.
+- Подготовлен Day 3 operator runbook.
+- Выполнен filter review для `dell_r740`: найден false rejection risk из-за слишком широких negative terms.
+- Смягчён tracked example config для `dell_r740`; локальный ignored `config/search_jobs.json` тоже обновлён для Day 3.
+- Подготовлен post-gate integration backlog, который разрешено использовать только после `go_worker_prototype`.
+
+Ключевые файлы:
+
+- `research/avito-monitor-worker-poc/src/worker.py`
+- `research/avito-monitor-worker-poc/tests/test_worker.py`
+- `research/avito-monitor-worker-poc/config/search_jobs.example.json`
+- `docs/37_price_monitoring_gate_summary.md`
+- `docs/41_price_monitoring_day3_operator_runbook.md`
+- `docs/42_price_monitoring_dell_r740_filter_review.md`
+- `docs/43_price_monitoring_post_gate_integration_backlog.md`
+- `docs/36_price_monitoring_gate_acceptance.md`
+- `docs/continuation.md`
+
+Решения и ограничения:
+
+- Повторный live Avito run 2026-06-19 не выполнять.
+- Day 3 запускать 2026-06-20 или позже, один раз в UTC-день.
+- `go_worker_prototype` всё ещё преждевременен: есть только 2 official endurance days.
+- Backend-модели, Alembic и UI `/pricing` не начинать до итогового gate decision.
+
+Проверки:
+
+- `.venv/bin/python -m unittest discover -s tests`: 21 tests OK.
+- `.venv/bin/python src/worker.py --dry-run-config --config config/search_jobs.json`: OK.
+- `git diff --check`: OK.
+- Коммиты `49832aa` и `5a3ab96` запушены в `origin/dev`.
+
+Что осталось:
+
+- На 2026-06-20 или позже выполнить Day 3 по `docs/41_price_monitoring_day3_operator_runbook.md`.
+- После Day 3 проверить, улучшился ли `dell_r740` после смягчения фильтра.
+- После Day 3 обновить gate summary и принять одно из решений: `continue_endurance_day_4`, `go_worker_prototype_candidate`, `hold_http_unstable`, `adjust_filters_offline`.
