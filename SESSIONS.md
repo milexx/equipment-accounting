@@ -186,3 +186,65 @@
 - При следующем продолжении начинать с `docs/46_price_monitoring_backend_skeleton_checklist.md`.
 - Если нужен Day 4 endurance, запускать его не раньше 2026-06-21 и только один раз в UTC-день.
 - Перед backend-кодом явно подтвердить объём: модели/миграция/ручной сервис без scheduler и UI.
+
+## 2026-06-20, backend skeleton
+
+Контекст: выполнение всех шагов дневного плана по backend skeleton для "Оценщика" после решения `go_worker_prototype_candidate_with_constraints`.
+
+Что сделано:
+
+- Добавлены pricing enum values: `PriceRunStatus`, `PriceJobStatus`, `PriceObservationStatus`.
+- Добавлены backend-модели:
+  - `PriceCategory`;
+  - `MonitoredItem`;
+  - `MarketSource`;
+  - `PriceScrapeRun`;
+  - `PriceObservation`;
+  - `DailyPriceSnapshot`;
+  - `ParserError`.
+- Добавлена Alembic migration `20260620_0005_add_pricing_tables`.
+- Обновлён Alembic env: подключён `app.models.pricing`, online migrations используют `create_engine(settings.database_url, poolclass=NullPool)`.
+- Добавлен `PricingService` с созданием source/category/item/run, сохранением observations/snapshots/parser errors и идемпотентным импортом сохранённого POC-run.
+- Добавлен ручной import script `scripts/import_price_poc_run.py`.
+- Добавлены focused tests `tests/test_pricing_service.py`.
+- В dev DB применена миграция до `20260620_0005`.
+- В новые таблицы импортирован сохранённый Day 3 run `20260620T081446Z`.
+
+Результат импорта Day 3:
+
+```text
+price_scrape_runs: 1
+price_observations: 64
+daily_price_snapshots: 3
+parser_errors: 1
+```
+
+Ключевые файлы:
+
+- `app/models/enums.py`
+- `app/models/pricing.py`
+- `app/models/__init__.py`
+- `app/services/pricing_service.py`
+- `scripts/import_price_poc_run.py`
+- `scripts/__init__.py`
+- `tests/test_pricing_service.py`
+- `alembic/env.py`
+- `alembic/versions/20260620_0005_add_pricing_tables.py`
+- `docs/46_price_monitoring_backend_skeleton_checklist.md`
+- `docs/continuation.md`
+
+Проверки:
+
+- `.venv/bin/python -m unittest discover -s tests`: 3 tests OK.
+- `research/avito-monitor-worker-poc/.venv/bin/python -m unittest discover -s research/avito-monitor-worker-poc/tests`: 21 tests OK.
+- `.venv/bin/python -c "from scripts.check_mvp_acceptance import main; raise SystemExit(main())"`: passed.
+- `.venv/bin/ruff check app scripts tests alembic/versions/20260620_0005_add_pricing_tables.py`: passed.
+- `git diff --check`: passed.
+- Alembic current via Python API: `20260620_0005 (head)`.
+
+Ограничения и наблюдения:
+
+- Live Avito не запускался.
+- UI `/pricing`, scheduler, automatic daily runs и live parser integration не реализованы.
+- Прямой запуск `python scripts/import_price_poc_run.py ...` в текущем sandbox окружении ловил `psycopg.OperationalError: connection is bad` до первого SQL; проверенный import-mode command зафиксирован в `docs/continuation.md`.
+- Следующий backend-шаг: parser contract + disabled Avito adapter boundary либо read-only service/query layer для будущего UI.

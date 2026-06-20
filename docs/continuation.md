@@ -468,8 +468,47 @@ decision: go_worker_prototype_candidate_with_constraints
 Backend skeleton checklist подготовлен:
 
 - документ: `docs/46_price_monitoring_backend_skeleton_checklist.md`;
-- статус: checklist only, не начало реализации;
-- первый кодовый шаг после explicit approval должен начинаться с backend/data model и tests, не с UI/scheduler.
+- статус: первый backend skeleton реализован 2026-06-20;
+- реализованы модели, миграция, service-layer для импорта сохранённых POC-run, focused tests;
+- UI `/pricing`, scheduler, live parser integration и production automation всё ещё не начаты.
+
+Backend skeleton implementation:
+
+```text
+app/models/pricing.py
+app/services/pricing_service.py
+scripts/import_price_poc_run.py
+tests/test_pricing_service.py
+alembic/versions/20260620_0005_add_pricing_tables.py
+```
+
+Dev DB:
+
+```text
+current revision: 20260620_0005
+imported run: 20260620T081446Z
+price_scrape_runs: 1
+price_observations: 64
+daily_price_snapshots: 3
+parser_errors: 1
+```
+
+Проверенная команда ручного импорта сохранённого POC-run:
+
+```bash
+.venv/bin/python -c "import os, sys; os.chdir('/opt/workspace/projects/equipment-accounting'); from scripts.import_price_poc_run import main; sys.argv=['import_price_poc_run.py','research/avito-monitor-worker-poc/runs/20260620T081446Z']; raise SystemExit(main())"
+```
+
+Прямой запуск `python scripts/import_price_poc_run.py ...` в текущем sandbox окружении давал `psycopg.OperationalError: connection is bad` до первого SQL; сервисный import path выше проверен и использован.
+
+Проверки после backend skeleton:
+
+```text
+.venv/bin/python -m unittest discover -s tests: 3 tests OK
+research/avito-monitor-worker-poc/.venv/bin/python -m unittest discover -s research/avito-monitor-worker-poc/tests: 21 tests OK
+.venv/bin/python -c "from scripts.check_mvp_acceptance import main; raise SystemExit(main())": passed
+.venv/bin/ruff check app scripts tests alembic/versions/20260620_0005_add_pricing_tables.py: passed
+```
 
 Offline-анализ day 1 уточнил:
 

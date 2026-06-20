@@ -69,3 +69,23 @@ class EquipmentPhotoPurpose(str, enum.Enum):
     defect = "defect"
     completeness = "completeness"
     other = "other"
+
+
+class PriceRunStatus(str, enum.Enum):
+    success = "success"
+    partial_success = "partial_success"
+    failed = "failed"
+
+
+class PriceJobStatus(str, enum.Enum):
+    success = "success"
+    no_data = "no_data"
+    blocked = "blocked"
+    captcha = "captcha"
+    parser_error = "parser_error"
+
+
+class PriceObservationStatus(str, enum.Enum):
+    relevant = "relevant"
+    unknown = "unknown"
+    rejected = "rejected"
