@@ -148,10 +148,11 @@ class DailyPriceSnapshot(Base):
     __tablename__ = "daily_price_snapshots"
     __table_args__ = (
         UniqueConstraint(
+            "scrape_run_id",
             "monitored_item_id",
             "source_id",
             "snapshot_date",
-            name="uq_daily_price_snapshots_item_source_date",
+            name="uq_daily_price_snapshots_run_item_source_date",
         ),
     )
 

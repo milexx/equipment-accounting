@@ -100,6 +100,7 @@ Implementation status: done for first backend skeleton.
 - `PriceScrapeRun`, `PriceObservation`, `DailyPriceSnapshot`, `ParserError` are persisted.
 - Re-import of the same `external_run_id` is idempotent for run children.
 - Blocked job persists as `ParserError` and blocked daily snapshot.
+- Every run keeps its own snapshots; multiple runs for the same item/source/date are preserved by `scrape_run_id`.
 
 ## Step 4: Parser Contract
 
@@ -176,6 +177,7 @@ Implementation status: partially done.
 
 - Added `tests/test_pricing_service.py`.
 - Covered import success+blocked, idempotent re-import, snapshot min/max/median.
+- Covered multiple same-day runs for the same item without overwriting historical snapshots.
 - Parser adapter and permissions tests are deferred because parser contract/UI are out of current scope.
 
 ## Explicitly Out Of Scope For First Backend Skeleton

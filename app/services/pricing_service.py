@@ -183,6 +183,7 @@ class PricingService:
 
         daily_snapshot = self.db.scalar(
             select(DailyPriceSnapshot).where(
+                DailyPriceSnapshot.scrape_run_id == run.id,
                 DailyPriceSnapshot.monitored_item_id == item.id,
                 DailyPriceSnapshot.source_id == source.id,
                 DailyPriceSnapshot.snapshot_date == snapshot_date,

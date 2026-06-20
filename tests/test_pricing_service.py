@@ -90,6 +90,25 @@ class PricingServiceTest(unittest.TestCase):
         self.assertEqual(len(self.db.scalars(select(DailyPriceSnapshot)).all()), 2)
         self.assertEqual(len(self.db.scalars(select(ParserError)).all()), 1)
 
+    def test_import_preserves_multiple_snapshots_for_same_item_and_date(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            first_run_dir = _write_sample_run(Path(tmp), run_id="run1", lenovo_median=30000)
+            second_run_dir = _write_sample_run(Path(tmp), run_id="run2", lenovo_median=32000)
+
+            first = self.service.import_poc_run(first_run_dir)
+            second = self.service.import_poc_run(second_run_dir)
+
+        self.assertNotEqual(first.run.id, second.run.id)
+        lenovo = self.db.scalar(select(MonitoredItem).where(MonitoredItem.code == "lenovo_t14"))
+        snapshots = self.db.scalars(
+            select(DailyPriceSnapshot)
+            .where(DailyPriceSnapshot.monitored_item_id == lenovo.id)
+            .order_by(DailyPriceSnapshot.scrape_run_id)
+        ).all()
+
+        self.assertEqual(len(snapshots), 2)
+        self.assertEqual([snapshot.median_price for snapshot in snapshots], [Decimal("30000.00"), Decimal("32000.00")])
+
     def test_calculate_snapshot_uses_observation_prices(self) -> None:
         source = self.service.get_or_create_source(code="avito", name="Avito")
         category = self.service.get_or_create_category(code="used_equipment", name="Б/у оборудование")
@@ -144,8 +163,8 @@ class PricingServiceTest(unittest.TestCase):
         self.assertEqual(snapshot["median_price"], Decimal("20000"))
 
 
-def _write_sample_run(root: Path) -> Path:
-    run_dir = root / "run1"
+def _write_sample_run(root: Path, *, run_id: str = "run1", lenovo_median: int = 30000) -> Path:
+    run_dir = root / run_id
     lenovo_dir = run_dir / "lenovo_t14"
     dell_dir = run_dir / "dell_r740"
     lenovo_dir.mkdir(parents=True)
@@ -154,7 +173,7 @@ def _write_sample_run(root: Path) -> Path:
     _write_json(
         run_dir / "run_report.json",
         {
-            "run_id": "run1",
+            "run_id": run_id,
             "started_at": "2026-06-20T08:00:00Z",
             "finished_at": "2026-06-20T08:01:00Z",
             "status": "partial_success",
@@ -201,7 +220,7 @@ def _write_sample_run(root: Path) -> Path:
             "rejected_count": 0,
             "min_price": 25000,
             "max_price": 35000,
-            "median_price": 30000,
+            "median_price": lenovo_median,
             "currency": "RUB",
             "fetched_at": "2026-06-20T08:00:10Z",
         },

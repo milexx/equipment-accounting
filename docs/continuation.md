@@ -485,13 +485,21 @@ alembic/versions/20260620_0005_add_pricing_tables.py
 Dev DB:
 
 ```text
-current revision: 20260620_0005
-imported run: 20260620T081446Z
-price_scrape_runs: 1
-price_observations: 64
-daily_price_snapshots: 3
+current revision: 20260620_0006
+imported runs: 20260619T082828Z, 20260620T081446Z
+price_scrape_runs: 2
+price_observations: 146
+daily_price_snapshots: 6
 parser_errors: 1
 ```
+
+Историчность запусков:
+
+- каждый `PriceScrapeRun` фиксируется отдельно;
+- `PriceObservation` привязаны к конкретному run;
+- `DailyPriceSnapshot` теперь run-scoped через unique constraint `uq_daily_price_snapshots_run_item_source_date`;
+- несколько запусков в один день для одной позиции больше не перезаписывают друг друга;
+- исторические графики можно строить по `daily_price_snapshots` с осью `snapshot_date`/`started_at` и сериями `median_price`, `min_price`, `max_price`, `status`.
 
 Проверенная команда ручного импорта сохранённого POC-run:
 

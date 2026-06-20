@@ -248,3 +248,41 @@ parser_errors: 1
 - UI `/pricing`, scheduler, automatic daily runs и live parser integration не реализованы.
 - Прямой запуск `python scripts/import_price_poc_run.py ...` в текущем sandbox окружении ловил `psycopg.OperationalError: connection is bad` до первого SQL; проверенный import-mode command зафиксирован в `docs/continuation.md`.
 - Следующий backend-шаг: parser contract + disabled Avito adapter boundary либо read-only service/query layer для будущего UI.
+
+## 2026-06-20, historical pricing fix
+
+Контекст: уточнено требование - каждый запуск оценщика должен фиксироваться отдельно, а исторические графики должны строиться по сохранённым точкам, без перезаписи same-day run.
+
+Что сделано:
+
+- Импортирован Day 2 run `20260619T082828Z`, где `dell_r740` был успешным.
+- Добавлена миграция `20260620_0006_make_price_snapshots_run_scoped`.
+- Unique constraint для `daily_price_snapshots` изменён:
+  - было: `monitored_item_id + source_id + snapshot_date`;
+  - стало: `scrape_run_id + monitored_item_id + source_id + snapshot_date`.
+- `PricingService.save_snapshot(...)` теперь ищет snapshot с учётом `scrape_run_id`.
+- Добавлен тест, что два разных запуска в один день для одной позиции сохраняют две исторические точки.
+
+Текущее состояние dev DB:
+
+```text
+current revision: 20260620_0006
+price_scrape_runs: 2
+price_observations: 146
+daily_price_snapshots: 6
+parser_errors: 1
+```
+
+История Dell:
+
+```text
+2026-06-19: success, relevant 11, median 139500
+2026-06-20: blocked, HTTP 403
+```
+
+Проверки:
+
+- `.venv/bin/python -m unittest discover -s tests`: 4 tests OK.
+- `.venv/bin/ruff check app scripts tests alembic/versions/20260620_0006_make_price_snapshots_run_scoped.py`: passed.
+- `git diff --check`: passed.
+- Alembic current: `20260620_0006 (head)`.
