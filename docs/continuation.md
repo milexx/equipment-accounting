@@ -277,6 +277,7 @@ docs/40_price_monitoring_endurance_day_1_2_comparison.md
 docs/41_price_monitoring_day3_operator_runbook.md
 docs/42_price_monitoring_dell_r740_filter_review.md
 docs/43_price_monitoring_post_gate_integration_backlog.md
+docs/44_price_monitoring_endurance_day_3.md
 ```
 
 Ключевые решения:
@@ -425,6 +426,29 @@ Offline-сравнение day 1 / day 2:
 - broad negative terms для `dell_r740` смягчены в `search_jobs.example.json` и локальном ignored `search_jobs.json`;
 - уточнён gate checklist: official endurance days не включают infrastructure attempts;
 - подготовлен backlog интеграции после `go_worker_prototype`: `docs/43_price_monitoring_post_gate_integration_backlog.md`.
+
+Endurance day 3 выполнен 2026-06-20:
+
+```text
+run_id: 20260620T081446Z
+status: partial_success
+kyocera_m2040dn: HTTP 200 success, raw 50, relevant 33, median 25000
+lenovo_t14: HTTP 200 success, raw 50, relevant 31, median 27990
+dell_r740: HTTP 403 blocked, access_restricted_ip
+```
+
+Gate summary после day 3:
+
+```text
+recommendation: go_worker_prototype_candidate
+runs_seen_total: 4
+runs_total: 3
+runs_excluded: 1
+runs_with_two_successes: 2
+runs_with_majority_blocked_or_failed: 0
+```
+
+Ручная интерпретация: формально gate даёт `go_worker_prototype_candidate`, но из-за повторного `HTTP 403` на третьем official day перед backend-моделями нужен отдельный gate decision doc. Повторный live run 2026-06-20 не делать; следующий live run - 2026-06-21 или позже, если решено продолжать endurance day 4.
 
 Offline-анализ day 1 уточнил:
 
