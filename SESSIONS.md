@@ -286,3 +286,33 @@ parser_errors: 1
 - `.venv/bin/ruff check app scripts tests alembic/versions/20260620_0006_make_price_snapshots_run_scoped.py`: passed.
 - `git diff --check`: passed.
 - Alembic current: `20260620_0006 (head)`.
+
+## 2026-06-20, pricing read-only UI prototype
+
+Контекст: нужен первый экран оценщика, чтобы смотреть сохранённую историю запусков и будущие исторические графики без повторного live Avito run.
+
+Что сделано:
+
+- Добавлен маршрут `/pricing` для центра.
+- Добавлен read-only Jinja UI с SVG-графиками по `daily_price_snapshots`.
+- Для каждой позиции показываются линии `min`, `median`, `max`, статусы blocked/no data и таблица всех snapshots.
+- Главная страница получила ссылку `Оценщик`.
+- MVP acceptance smoke дополнен проверками:
+  - центр открывает `/pricing`;
+  - региональная роль получает `403`.
+
+Проверки:
+
+- `/pricing`: HTTP 200 для центра.
+- `/pricing` с `demo_user=region24`: HTTP 403.
+- `.venv/bin/python -m unittest discover -s tests`: 4 tests OK.
+- `research/avito-monitor-worker-poc/.venv/bin/python -m unittest discover -s research/avito-monitor-worker-poc/tests`: 21 tests OK.
+- `.venv/bin/ruff check app scripts tests alembic/versions/20260620_0006_make_price_snapshots_run_scoped.py`: passed.
+- `.venv/bin/python -c "from scripts.check_mvp_acceptance import main; raise SystemExit(main())"`: passed.
+- `git diff --check`: passed.
+
+Ограничения:
+
+- Live Avito не запускался.
+- Scheduler не подключался.
+- UI использует уже импортированные snapshots из dev DB.

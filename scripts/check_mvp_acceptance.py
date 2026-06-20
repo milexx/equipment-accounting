@@ -103,6 +103,7 @@ def check_http_smoke() -> list[CheckResult]:
         ("login", "/login", None, 200, "Вход в демо"),
         ("region", "/region", "demo_user=region24", 200, "Рабочее место филиала"),
         ("equipment list", "/equipment", "demo_user=center", 200, "Реестр оборудования"),
+        ("pricing", "/pricing", "demo_user=center", 200, "Оценщик"),
         ("equipment new", "/equipment/new", "demo_user=region24", 200, "Добавить оборудование"),
         ("equipment detail", "/equipment/1", "demo_user=center", 200, "Lenovo ThinkPad T14"),
         ("documentation", "/documentation", None, 200, "Бизнес-процесс системы"),
@@ -116,11 +117,13 @@ def check_http_smoke() -> list[CheckResult]:
 
 def check_access_rules() -> list[CheckResult]:
     http_get("/equipment", cookie="demo_user=region24", expected_status=403)
+    http_get("/pricing", cookie="demo_user=region24", expected_status=403)
     http_get("/admin", cookie="demo_user=center", expected_status=403)
     http_get("/admin", cookie="demo_user=admin", expected_status=200, expected_text="Администрирование")
     http_get("/equipment/2", cookie="demo_user=region24", expected_status=403)
     return [
         CheckResult("region cannot open center registry", "/equipment вернул 403"),
+        CheckResult("region cannot open pricing", "/pricing вернул 403"),
         CheckResult("center cannot open admin", "/admin для center вернул 403"),
         CheckResult("admin can open admin", "/admin для admin вернул 200"),
         CheckResult("region isolation", "region24 не видит карточку другого региона"),

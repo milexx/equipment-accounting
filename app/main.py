@@ -10,6 +10,7 @@ from app.api.auth import router as auth_router
 from app.api.documentation import router as documentation_router
 from app.api.equipment import router as equipment_router
 from app.api.health import router as health_router
+from app.api.pricing import router as pricing_router
 from app.api.region import router as region_router
 from app.auth.provider import get_auth_provider
 from app.config import settings
@@ -27,6 +28,7 @@ app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(documentation_router)
 app.include_router(equipment_router)
+app.include_router(pricing_router)
 app.include_router(region_router)
 
 

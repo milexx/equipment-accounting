@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Оценщик</title>
+  <link rel="stylesheet" href="/static/app.css?v=20260620-pricing">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Учёт оборудования</div>
+    <nav>
+      <a href="/">Главная</a>
+      <a href="/equipment">Реестр</a>
+      <a href="/pricing" class="active">Оценщик</a>
+    </nav>
+  </header>
+
+  <main class="workbench pricing-workbench">
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="breadcrumbs"><a href="/">Главная</a> / оценщик</div>
+          <h1>Оценщик</h1>
+          <p>История сохранённых запусков: медиана, минимум, максимум и статусы источника.</p>
+        </div>
+      </div>
+
+      <div class="pricing-legend">
+        <span><i class="legend-line median"></i>Медиана</span>
+        <span><i class="legend-line min"></i>Минимум</span>
+        <span><i class="legend-line max"></i>Максимум</span>
+        <span><i class="legend-dot blocked"></i>Блокировка / нет данных</span>
+      </div>
+
+      <div class="pricing-grid">
+        {% for chart in charts %}
+          <article class="pricing-chart-block">
+            <div class="pricing-chart-head">
+              <div>
+                <h2>{{ chart.item_name }}</h2>
+                <span>{{ chart.item_code }}</span>
+              </div>
+              <div class="pricing-scale">
+                <strong>{{ chart.y_max_label }}</strong>
+                <span>{{ chart.y_min_label }}</span>
+              </div>
+            </div>
+
+            <svg class="pricing-chart" viewBox="0 0 760 280" role="img" aria-label="График {{ chart.item_name }}">
+              <line x1="56" y1="56" x2="704" y2="56" class="chart-grid-line"></line>
+              <line x1="56" y1="144" x2="704" y2="144" class="chart-grid-line"></line>
+              <line x1="56" y1="232" x2="704" y2="232" class="chart-axis"></line>
+              <line x1="56" y1="56" x2="56" y2="232" class="chart-axis"></line>
+
+              {% if chart.max_polyline %}
+                <polyline points="{{ chart.max_polyline }}" class="chart-line max"></polyline>
+              {% endif %}
+              {% if chart.min_polyline %}
+                <polyline points="{{ chart.min_polyline }}" class="chart-line min"></polyline>
+              {% endif %}
+              {% if chart.median_polyline %}
+                <polyline points="{{ chart.median_polyline }}" class="chart-line median"></polyline>
+              {% endif %}
+
+              {% for point in chart.points %}
+                <line x1="{{ point.x }}" y1="232" x2="{{ point.x }}" y2="238" class="chart-tick"></line>
+                <text x="{{ point.x }}" y="258" text-anchor="middle" class="chart-label">{{ point.date_label[5:] }}</text>
+                {% if point.y_median is not none %}
+                  <circle cx="{{ point.x }}" cy="{{ point.y_median }}" r="5" class="chart-dot median"></circle>
+                  <title>{{ point.date_label }} median {{ format_price(point.median_price) }}</title>
+                {% else %}
+                  <circle cx="{{ point.x }}" cy="232" r="6" class="chart-dot blocked"></circle>
+                {% endif %}
+              {% endfor %}
+            </svg>
+
+            <div class="pricing-point-list">
+              {% for point in chart.points %}
+                <div>
+                  <span>{{ point.date_label }}</span>
+                  <strong>{{ status_labels[point.status] }}</strong>
+                  <em>{{ format_price(point.median_price) }}</em>
+                </div>
+              {% endfor %}
+            </div>
+          </article>
+        {% else %}
+          <div class="empty">История оценщика пока пустая.</div>
+        {% endfor %}
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Позиция</th>
+              <th>Дата</th>
+              <th>Run</th>
+              <th>Статус</th>
+              <th>Relevant</th>
+              <th>Min</th>
+              <th>Median</th>
+              <th>Max</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for snapshot in snapshots %}
+              <tr>
+                <td>{{ snapshot.monitored_item.name }}</td>
+                <td>{{ snapshot.snapshot_date }}</td>
+                <td><code>{{ snapshot.scrape_run.external_run_id }}</code></td>
+                <td>
+                  <span class="status-badge pricing-status-{{ snapshot.status.value }}">
+                    {{ status_labels[snapshot.status.value] }}
+                  </span>
+                </td>
+                <td>{{ snapshot.relevant_count }}</td>
+                <td>{{ format_price(snapshot.min_price) }}</td>
+                <td>{{ format_price(snapshot.median_price) }}</td>
+                <td>{{ format_price(snapshot.max_price) }}</td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="8" class="empty">Нет сохранённых snapshots.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
