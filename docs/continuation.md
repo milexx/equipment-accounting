@@ -278,6 +278,8 @@ docs/41_price_monitoring_day3_operator_runbook.md
 docs/42_price_monitoring_dell_r740_filter_review.md
 docs/43_price_monitoring_post_gate_integration_backlog.md
 docs/44_price_monitoring_endurance_day_3.md
+docs/45_price_monitoring_gate_decision_after_day_3.md
+docs/46_price_monitoring_backend_skeleton_checklist.md
 ```
 
 Ключевые решения:
@@ -449,6 +451,25 @@ runs_with_majority_blocked_or_failed: 0
 ```
 
 Ручная интерпретация: формально gate даёт `go_worker_prototype_candidate`, но из-за повторного `HTTP 403` на третьем official day перед backend-моделями нужен отдельный gate decision doc. Повторный live run 2026-06-20 не делать; следующий live run - 2026-06-21 или позже, если решено продолжать endurance day 4.
+
+Gate decision после day 3:
+
+```text
+decision: go_worker_prototype_candidate_with_constraints
+```
+
+Смысл решения:
+
+- можно готовить backend skeleton implementation checklist;
+- Avito считать нестабильным experimental source;
+- UI `/pricing`, scheduler и production automation не начинать без отдельного explicit approval;
+- детали: `docs/45_price_monitoring_gate_decision_after_day_3.md`.
+
+Backend skeleton checklist подготовлен:
+
+- документ: `docs/46_price_monitoring_backend_skeleton_checklist.md`;
+- статус: checklist only, не начало реализации;
+- первый кодовый шаг после explicit approval должен начинаться с backend/data model и tests, не с UI/scheduler.
 
 Offline-анализ day 1 уточнил:
 
