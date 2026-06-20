@@ -140,3 +140,49 @@
 - На 2026-06-20 или позже выполнить Day 3 по `docs/41_price_monitoring_day3_operator_runbook.md`.
 - После Day 3 проверить, улучшился ли `dell_r740` после смягчения фильтра.
 - После Day 3 обновить gate summary и принять одно из решений: `continue_endurance_day_4`, `go_worker_prototype_candidate`, `hold_http_unstable`, `adjust_filters_offline`.
+
+## 2026-06-20
+
+Контекст: закрытие Day 3 endurance по research-направлению "Оценщик"/Avito price monitoring в `equipment-accounting`, ветка `dev`.
+
+Что сделано:
+
+- Выполнен Day 3 endurance live run POC Avito worker: `run_id: 20260620T081446Z`.
+- Результат запуска: `partial_success`, 2 успешные job и 1 блокировка:
+  - `kyocera_m2040dn`: `HTTP 200`, relevant 33, median 25000;
+  - `lenovo_t14`: `HTTP 200`, relevant 31, median 27990;
+  - `dell_r740`: `HTTP 403`, `blocked`, block reason `http_403`.
+- Сгенерирован Day 3 endurance doc и обновлён gate summary.
+- После Day 3 принято решение `go_worker_prototype_candidate_with_constraints`.
+- Подготовлен backend skeleton checklist для следующего этапа, без запуска реализации backend-моделей в этот день.
+- Обновлена точка продолжения в `docs/continuation.md`.
+
+Ключевые файлы:
+
+- `docs/44_price_monitoring_endurance_day_3.md`
+- `docs/45_price_monitoring_gate_decision_after_day_3.md`
+- `docs/46_price_monitoring_backend_skeleton_checklist.md`
+- `docs/37_price_monitoring_gate_summary.md`
+- `docs/continuation.md`
+
+Решения и ограничения:
+
+- Источник Avito можно использовать только как экспериментальный worker prototype candidate, не как production-stable источник.
+- Backend-прототип разрешён только с ограничениями: abstraction boundary, manual run, stop-on-block, без scheduler и без UI `/pricing`.
+- Запрещены retry loop, proxy/cookies/CAPTCHA bypass и повторные live-запросы в тот же UTC-день.
+- Повторный live Avito run 2026-06-20 не выполнять.
+- Следующий live run разрешён 2026-06-21 или позже, если решено продолжать endurance day 4.
+
+Проверки:
+
+- `.venv/bin/python -m unittest discover -s tests`: 21 tests OK.
+- `.venv/bin/python src/worker.py --dry-run-config --config config/search_jobs.json`: OK.
+- Preflight до live run: `ready`.
+- Preflight после live run: `blocked_by_same_day_guard` на `20260620T081446Z`.
+- Коммиты `f4fd7c9` и `0c8a9ec` запушены в `origin/dev`.
+
+Что осталось:
+
+- При следующем продолжении начинать с `docs/46_price_monitoring_backend_skeleton_checklist.md`.
+- Если нужен Day 4 endurance, запускать его не раньше 2026-06-21 и только один раз в UTC-день.
+- Перед backend-кодом явно подтвердить объём: модели/миграция/ручной сервис без scheduler и UI.
