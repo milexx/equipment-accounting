@@ -157,6 +157,7 @@ class WorkerAnalyzeRunTest(unittest.TestCase):
             (job_dir / "daily_snapshot.json").write_text(
                 json.dumps(
                     {
+                        "source": "youla",
                         "raw_count": 1,
                         "normalized_count": 1,
                         "relevant_count": 0,
@@ -176,6 +177,7 @@ class WorkerAnalyzeRunTest(unittest.TestCase):
             report = worker.analyze_run(run_dir)
 
         self.assertEqual(report["run_id"], "run")
+        self.assertEqual(report["jobs"][0]["source"], "youla")
         self.assertEqual(report["jobs"][0]["html_findings"], ["page_not_found"])
         self.assertEqual(report["jobs"][0]["rejected_reason_counts"], {"negative_term:экран": 1})
 
@@ -460,6 +462,7 @@ class WorkerMarkdownReportTest(unittest.TestCase):
             "jobs": [
                 {
                     "job_code": "lenovo_t14",
+                    "source": "avito_duff89",
                     "status": "success",
                     "http_status": 200,
                     "raw_count": 50,
@@ -480,7 +483,7 @@ class WorkerMarkdownReportTest(unittest.TestCase):
         markdown = worker.render_markdown_report(analysis)
 
         self.assertIn("# Price Monitoring Run Report: run1", markdown)
-        self.assertIn("| `lenovo_t14` | 200 | `success` | 50 | 50 | 30 | 0 | 20 |", markdown)
+        self.assertIn("| `lenovo_t14` | `avito_duff89` | 200 | `success` | 50 | 50 | 30 | 0 | 20 |", markdown)
         self.assertIn("- `negative_term:экран`: 7", markdown)
 
 
@@ -495,6 +498,7 @@ class WorkerEnduranceDocTest(unittest.TestCase):
             "jobs": [
                 {
                     "job_code": "kyocera_m2040dn",
+                    "source": "avito",
                     "status": "blocked",
                     "http_status": 403,
                     "block_reason": "http_403",
@@ -523,7 +527,7 @@ class WorkerEnduranceDocTest(unittest.TestCase):
         )
 
         self.assertIn("# Endurance Test Оценщика: День 2", markdown)
-        self.assertIn("| `kyocera_m2040dn` | 403 | `blocked` |", markdown)
+        self.assertIn("| `kyocera_m2040dn` | `avito` | 403 | `blocked` |", markdown)
         self.assertIn("hold_http_unstable_candidate", markdown)
         self.assertIn("Не делать повторный запуск.", markdown)
 

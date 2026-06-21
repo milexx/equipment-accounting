@@ -57,6 +57,8 @@ Analyze latest run:
 .venv/bin/python src/worker.py --analyze-run runs/<RUN_ID>
 ```
 
+The analysis output must show `source` for every job.
+
 Generate markdown report:
 
 ```bash

@@ -893,6 +893,7 @@ def analyze_run(run_dir: Path) -> dict[str, Any]:
         jobs.append(
             {
                 "job_code": job_dir.name,
+                "source": snapshot.get("source") or job_report.get("source") or "avito",
                 "status": job_report.get("status"),
                 "http_status": job_report.get("http_status"),
                 "block_reason": job_report.get("block_reason"),
@@ -992,8 +993,8 @@ def render_markdown_report(analysis: dict[str, Any]) -> str:
         f"jobs_total: {analysis.get('jobs_total')}",
         "```",
         "",
-        "| Позиция | HTTP | Статус | Raw | Normalized | Relevant | Unknown | Rejected | Min | Max | Median | Findings | Diagnostic |",
-        "|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|",
+        "| Позиция | Source | HTTP | Статус | Raw | Normalized | Relevant | Unknown | Rejected | Min | Max | Median | Findings | Diagnostic |",
+        "|---|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|",
     ]
     for job in analysis["jobs"]:
         findings = ", ".join(job["html_findings"]) if job["html_findings"] else "-"
@@ -1004,6 +1005,7 @@ def render_markdown_report(analysis: dict[str, Any]) -> str:
             + " | ".join(
                 [
                     f"`{job['job_code']}`",
+                    f"`{job.get('source')}`",
                     value_or_dash(job.get("http_status")),
                     f"`{job.get('status')}`",
                     value_or_dash(job.get("raw_count")),
@@ -1093,8 +1095,8 @@ def render_endurance_doc(
         "",
         "## Результаты По Позициям",
         "",
-        "| Позиция | HTTP | Статус | Raw | Normalized | Relevant | Unknown | Rejected | Min | Max | Median | Findings | Diagnostic |",
-        "|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|",
+        "| Позиция | Source | HTTP | Статус | Raw | Normalized | Relevant | Unknown | Rejected | Min | Max | Median | Findings | Diagnostic |",
+        "|---|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|",
     ]
     for job in analysis["jobs"]:
         findings = ", ".join(job["html_findings"]) if job["html_findings"] else "-"
@@ -1105,6 +1107,7 @@ def render_endurance_doc(
             + " | ".join(
                 [
                     f"`{job['job_code']}`",
+                    f"`{job.get('source')}`",
                     value_or_dash(job.get("http_status")),
                     f"`{job.get('status')}`",
                     value_or_dash(job.get("raw_count")),
