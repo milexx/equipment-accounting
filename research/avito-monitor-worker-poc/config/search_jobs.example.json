@@ -3,6 +3,22 @@
   "request_delay_seconds": 5,
   "timeout_seconds": 20,
   "max_pages": 1,
+  "block_diagnostic": {
+    "enabled": false,
+    "timeout_seconds": 60,
+    "command": [
+      "/tmp/duff89-parser-avito-venv/bin/python",
+      "scripts/duff89_probe.py",
+      "--repo",
+      "/tmp/duff89-parser-avito",
+      "--url",
+      "{search_url}",
+      "--job-code",
+      "{job_code}",
+      "--job-dir",
+      "{job_dir}"
+    ]
+  },
   "jobs": [
     {
       "code": "kyocera_m2040dn",

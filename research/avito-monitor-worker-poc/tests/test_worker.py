@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -163,6 +164,82 @@ class WorkerAnalyzeRunTest(unittest.TestCase):
         self.assertEqual(report["run_id"], "run")
         self.assertEqual(report["jobs"][0]["html_findings"], ["page_not_found"])
         self.assertEqual(report["jobs"][0]["rejected_reason_counts"], {"negative_term:экран": 1})
+
+    def test_analyze_run_includes_block_diagnostic(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = Path(tmp) / "run"
+            job_dir = run_dir / "job1"
+            job_dir.mkdir(parents=True)
+            (run_dir / "run_report.json").write_text(
+                json.dumps({"run_id": "run", "status": "partial_success", "jobs_total": 1}),
+                encoding="utf-8",
+            )
+            (job_dir / "job_report.json").write_text(
+                json.dumps({"status": "blocked", "block_diagnostic": {"status": "success"}}),
+                encoding="utf-8",
+            )
+
+            report = worker.analyze_run(run_dir)
+
+        self.assertEqual(report["jobs"][0]["block_diagnostic"]["status"], "success")
+
+
+class WorkerBlockDiagnosticTest(unittest.TestCase):
+    def test_run_block_diagnostic_executes_configured_command(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            job_dir = Path(tmp) / "job1"
+            job_dir.mkdir()
+            job = {
+                "code": "job1",
+                "search_url": "https://www.avito.ru/all?q=Job+1",
+            }
+            diagnostic = {
+                "enabled": True,
+                "timeout_seconds": 10,
+                "command": [
+                    sys.executable,
+                    "-c",
+                    "import os; print('probe ' + os.environ['AVITO_DIAGNOSTIC_JOB_CODE'])",
+                ],
+            }
+
+            result = worker.run_block_diagnostic(job, job_dir, diagnostic)
+
+        self.assertIsNotNone(result)
+        assert result is not None
+        self.assertEqual(result["status"], "success")
+        self.assertIn("probe job1", result["stdout_tail"])
+
+    def test_process_html_runs_block_diagnostic_on_403(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            job_dir = Path(tmp) / "job1"
+            job = {
+                "code": "job1",
+                "search_url": "https://www.avito.ru/all?q=Job+1",
+            }
+            diagnostic = {
+                "enabled": True,
+                "timeout_seconds": 10,
+                "command": [
+                    sys.executable,
+                    "-c",
+                    "print('diagnostic ok')",
+                ],
+            }
+
+            report = worker.process_html(
+                job,
+                "2026-06-21T00:00:00Z",
+                job_dir,
+                403,
+                {},
+                "blocked",
+                diagnostic,
+            )
+
+            self.assertEqual(report["status"], "blocked")
+            self.assertEqual(report["block_diagnostic"]["status"], "success")
+            self.assertTrue((job_dir / "block_diagnostic.json").exists())
 
 
 class WorkerConfigValidationTest(unittest.TestCase):

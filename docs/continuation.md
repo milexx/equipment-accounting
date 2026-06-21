@@ -90,6 +90,11 @@
   - run импортирован в БД как 3 blocked snapshots;
   - решение обновлено до `continue_endurance_with_automation_hold`;
   - scheduler и unattended runs остаются заблокированы.
+- Для следующих запусков POC worker добавлен diagnostic hook:
+  - при `blocked`/`captcha` запускает контрольный `Duff89/parser_avito` probe;
+  - пишет `block_diagnostic.json` и `duff89_probe_report.json` рядом с job report;
+  - результат показывается в offline/endurance markdown reports;
+  - hook включён в локальном ignored `research/avito-monitor-worker-poc/config/search_jobs.json`, но выключен в git example config.
 - В форме создания `/equipment/new` динамические поля теперь показываются только для выбранного типа оборудования; поля скрытых типов отключаются и не отправляются.
 - В карточке `/equipment/{id}` реализовано редактирование фото:
   - дозагрузка фото;

@@ -1,7 +1,9 @@
 import argparse
 import html
 import json
+import os
 import random
+import subprocess
 import statistics
 import time
 from collections import Counter
@@ -227,6 +229,80 @@ def calculate_snapshot(
     }
 
 
+def format_diagnostic_command(command: list[str], job: dict[str, Any], job_dir: Path) -> list[str]:
+    values = {
+        "job_code": job["code"],
+        "search_url": job["search_url"],
+        "job_dir": str(job_dir),
+    }
+    return [part.format(**values) for part in command]
+
+
+def run_block_diagnostic(
+    job: dict[str, Any],
+    job_dir: Path,
+    block_diagnostic: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    if not block_diagnostic or not block_diagnostic.get("enabled"):
+        return None
+
+    command = block_diagnostic.get("command")
+    if not isinstance(command, list) or not all(isinstance(part, str) for part in command):
+        return {
+            "status": "not_configured",
+            "error": "block_diagnostic.command must be a list of strings",
+        }
+
+    timeout = int(block_diagnostic.get("timeout_seconds") or 60)
+    rendered_command = format_diagnostic_command(command, job, job_dir)
+    started_at = iso(utc_now())
+    env = {
+        **os.environ,
+        "AVITO_DIAGNOSTIC_JOB_CODE": job["code"],
+        "AVITO_DIAGNOSTIC_SEARCH_URL": job["search_url"],
+        "AVITO_DIAGNOSTIC_JOB_DIR": str(job_dir),
+    }
+    try:
+        completed = subprocess.run(
+            rendered_command,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            env=env,
+        )
+        result = {
+            "status": "success" if completed.returncode == 0 else "failed",
+            "started_at": started_at,
+            "finished_at": iso(utc_now()),
+            "command": rendered_command,
+            "returncode": completed.returncode,
+            "stdout_tail": completed.stdout[-4000:],
+            "stderr_tail": completed.stderr[-4000:],
+        }
+    except FileNotFoundError as exc:
+        result = {
+            "status": "missing",
+            "started_at": started_at,
+            "finished_at": iso(utc_now()),
+            "command": rendered_command,
+            "error": str(exc),
+        }
+    except subprocess.TimeoutExpired as exc:
+        result = {
+            "status": "timeout",
+            "started_at": started_at,
+            "finished_at": iso(utc_now()),
+            "command": rendered_command,
+            "timeout_seconds": timeout,
+            "stdout_tail": (exc.stdout or "")[-4000:] if isinstance(exc.stdout, str) else "",
+            "stderr_tail": (exc.stderr or "")[-4000:] if isinstance(exc.stderr, str) else "",
+        }
+
+    write_json(job_dir / "block_diagnostic.json", result)
+    return result
+
+
 def process_html(
     job: dict[str, Any],
     fetched_at: str,
@@ -234,6 +310,7 @@ def process_html(
     status_code: int,
     headers: dict[str, str],
     html_text: str,
+    block_diagnostic: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     raw_dir = job_dir / "raw_pages"
     (raw_dir / "page_1.html").parent.mkdir(parents=True, exist_ok=True)
@@ -251,6 +328,9 @@ def process_html(
             "items_relevant": 0,
             "fetched_at": fetched_at,
         }
+        diagnostic = run_block_diagnostic(job, job_dir, block_diagnostic)
+        if diagnostic:
+            report["block_diagnostic"] = diagnostic
         write_json(job_dir / "job_report.json", report)
         return report
 
@@ -319,7 +399,12 @@ def process_html(
     return report
 
 
-def run_job(job: dict[str, Any], timeout: int, run_dir: Path) -> dict[str, Any]:
+def run_job(
+    job: dict[str, Any],
+    timeout: int,
+    run_dir: Path,
+    block_diagnostic: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     fetched_at = iso(utc_now())
     job_dir = run_dir / job["code"]
     try:
@@ -336,7 +421,7 @@ def run_job(job: dict[str, Any], timeout: int, run_dir: Path) -> dict[str, Any]:
         write_json(job_dir / "job_report.json", report)
         return report
 
-    return process_html(job, fetched_at, job_dir, status_code, headers, html_text)
+    return process_html(job, fetched_at, job_dir, status_code, headers, html_text, block_diagnostic)
 
 
 def live_run_exists_for_date(runs_dir: Path, run_date: str) -> tuple[bool, dict[str, Any] | None]:
@@ -391,7 +476,14 @@ def main() -> int:
     for index, job in enumerate(jobs):
         if index > 0 and request_delay > 0:
             time.sleep(request_delay)
-        job_reports.append(run_job(job, config.get("timeout_seconds", 20), run_dir))
+        job_reports.append(
+            run_job(
+                job,
+                config.get("timeout_seconds", 20),
+                run_dir,
+                config.get("block_diagnostic"),
+            )
+        )
 
     finished_at = utc_now()
     run_report = {
@@ -466,7 +558,25 @@ def validate_config(config: dict[str, Any]) -> tuple[bool, list[str], dict[str, 
         "job_codes": [job.get("code") for job in jobs if isinstance(job, dict)],
         "request_delay_seconds": config.get("request_delay_seconds"),
         "timeout_seconds": config.get("timeout_seconds"),
+        "block_diagnostic_enabled": bool(
+            isinstance(config.get("block_diagnostic"), dict)
+            and config["block_diagnostic"].get("enabled")
+        ),
     }
+
+    block_diagnostic = config.get("block_diagnostic")
+    if block_diagnostic is not None:
+        if not isinstance(block_diagnostic, dict):
+            errors.append("block_diagnostic must be an object")
+        else:
+            command = block_diagnostic.get("command")
+            if block_diagnostic.get("enabled") and (
+                not isinstance(command, list)
+                or not command
+                or not all(isinstance(part, str) for part in command)
+            ):
+                errors.append("block_diagnostic.command must be a non-empty list of strings")
+
     return not errors, errors, summary
 
 
@@ -582,6 +692,8 @@ def analyze_run(run_dir: Path) -> dict[str, Any]:
                 "max_price": snapshot.get("max_price"),
                 "median_price": snapshot.get("median_price"),
                 "html_findings": diagnose_raw_html(job_dir),
+                "block_diagnostic": job_report.get("block_diagnostic")
+                or load_json(job_dir / "block_diagnostic.json", None),
                 "rejected_reason_counts": reason_counts(rejected),
                 "unknown_reason_counts": reason_counts(unknown),
             }
@@ -660,11 +772,13 @@ def render_markdown_report(analysis: dict[str, Any]) -> str:
         f"jobs_total: {analysis.get('jobs_total')}",
         "```",
         "",
-        "| Позиция | HTTP | Статус | Raw | Normalized | Relevant | Unknown | Rejected | Min | Max | Median | Findings |",
-        "|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---|",
+        "| Позиция | HTTP | Статус | Raw | Normalized | Relevant | Unknown | Rejected | Min | Max | Median | Findings | Diagnostic |",
+        "|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|",
     ]
     for job in analysis["jobs"]:
         findings = ", ".join(job["html_findings"]) if job["html_findings"] else "-"
+        diagnostic = job.get("block_diagnostic") or {}
+        diagnostic_status = diagnostic.get("status") if isinstance(diagnostic, dict) else None
         lines.append(
             "| "
             + " | ".join(
@@ -681,6 +795,7 @@ def render_markdown_report(analysis: dict[str, Any]) -> str:
                     value_or_dash(job.get("max_price")),
                     value_or_dash(job.get("median_price")),
                     findings,
+                    f"`{diagnostic_status}`" if diagnostic_status else "-",
                 ]
             )
             + " |"
@@ -758,11 +873,13 @@ def render_endurance_doc(
         "",
         "## Результаты По Позициям",
         "",
-        "| Позиция | HTTP | Статус | Raw | Normalized | Relevant | Unknown | Rejected | Min | Max | Median | Findings |",
-        "|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---|",
+        "| Позиция | HTTP | Статус | Raw | Normalized | Relevant | Unknown | Rejected | Min | Max | Median | Findings | Diagnostic |",
+        "|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|",
     ]
     for job in analysis["jobs"]:
         findings = ", ".join(job["html_findings"]) if job["html_findings"] else "-"
+        diagnostic = job.get("block_diagnostic") or {}
+        diagnostic_status = diagnostic.get("status") if isinstance(diagnostic, dict) else None
         lines.append(
             "| "
             + " | ".join(
@@ -779,6 +896,7 @@ def render_endurance_doc(
                     value_or_dash(job.get("max_price")),
                     value_or_dash(job.get("median_price")),
                     findings,
+                    f"`{diagnostic_status}`" if diagnostic_status else "-",
                 ]
             )
             + " |"
@@ -793,6 +911,9 @@ def render_endurance_doc(
             details.append(f"error: `{job['error']}`")
         if job["html_findings"]:
             details.append("findings: " + ", ".join(f"`{item}`" for item in job["html_findings"]))
+        diagnostic = job.get("block_diagnostic") or {}
+        if isinstance(diagnostic, dict) and diagnostic.get("status"):
+            details.append(f"block diagnostic: `{diagnostic['status']}`")
         if job["rejected_reason_counts"]:
             top_reason, top_count = next(iter(job["rejected_reason_counts"].items()))
             details.append(f"top rejected reason: `{top_reason}` ({top_count})")

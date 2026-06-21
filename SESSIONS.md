@@ -354,3 +354,25 @@ continue_endurance_with_automation_hold
 - Повторный live Avito run 2026-06-21 UTC не выполнять.
 - Scheduler и unattended production runs не включать.
 - Avito остаётся experimental/manual source с явным отображением blocked-состояний.
+
+## 2026-06-21, Duff89 block diagnostic hook
+
+Контекст: нужно при каждой блокировке проверять, как в той же среде отрабатывает git-модуль `Duff89/parser_avito`.
+
+Что сделано:
+
+- В POC worker добавлен `block_diagnostic` hook.
+- При статусе `blocked` или `captcha` worker запускает настроенную диагностическую команду.
+- Результат сохраняется в:
+  - `runs/{run_id}/{job_code}/block_diagnostic.json`;
+  - `runs/{run_id}/{job_code}/duff89_probe_report.json` для Duff89 probe.
+- Analysis и markdown/endurance reports теперь показывают колонку `Diagnostic`.
+- Добавлен `research/avito-monitor-worker-poc/scripts/duff89_probe.py`.
+- В `config/search_jobs.example.json` hook описан, но выключен.
+- В локальном ignored `config/search_jobs.json` hook включён для следующего разрешённого live run.
+
+Ограничения:
+
+- Это диагностический probe, не источник цены.
+- Это не отменяет правило: не делать повторный live Avito run 2026-06-21 UTC.
+- Следующий live run можно делать 2026-06-22 UTC или позже.

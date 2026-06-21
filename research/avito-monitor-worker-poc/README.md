@@ -146,6 +146,40 @@ Endurance test:
 
 Правило: не больше одного live-запуска в день. При `blocked`, `captcha`, `403` или `429` не делать повторный запуск в этот же день.
 
+## Block Diagnostic Hook
+
+При блокировке основной worker может запускать отдельную диагностическую команду. Это не retry и не источник цены: результат нужен только для ответа на вопрос, блокируется ли альтернативный git-модуль `Duff89/parser_avito` в той же среде.
+
+Настройка находится в `block_diagnostic`:
+
+```json
+{
+  "enabled": true,
+  "timeout_seconds": 60,
+  "command": [
+    "/tmp/duff89-parser-avito-venv/bin/python",
+    "scripts/duff89_probe.py",
+    "--repo",
+    "/tmp/duff89-parser-avito",
+    "--url",
+    "{search_url}",
+    "--job-code",
+    "{job_code}",
+    "--job-dir",
+    "{job_dir}"
+  ]
+}
+```
+
+Результат пишется в:
+
+```text
+runs/{run_id}/{job_code}/block_diagnostic.json
+runs/{run_id}/{job_code}/duff89_probe_report.json
+```
+
+В git example config hook выключен. В локальном ignored `config/search_jobs.json` hook включён для следующего разрешённого endurance run.
+
 | День | Дата | Позиции | Результат | Документ |
 |---|---|---|---|---|
 | 1 | 2026-06-18 | `kyocera_m2040dn`, `lenovo_t14`, `dell_r740` | `partial_success_http_unstable` | `docs/33_price_monitoring_endurance_day_1.md` |
