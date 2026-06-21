@@ -90,6 +90,13 @@
   - run импортирован в БД как 3 blocked snapshots;
   - решение обновлено до `continue_endurance_with_automation_hold`;
   - scheduler и unattended runs остаются заблокированы.
+- Выполнен source discovery по Юле как альтернативному ручному источнику:
+  - Youla HTML/search endpoints вернули `HTTP 200` с текущего сервера;
+  - найден GraphQL catalog endpoint `https://api-gw.youla.ru/graphql`;
+  - один контрольный запрос `catalogProductsBoard` по `Lenovo ThinkPad T14` вернул `HTTP 200` и карточки с ценами;
+  - добавлен ручной POC `research/youla-source-poc/fetch_youla_catalog.py`;
+  - POC-скрипт проверен: `HTTP 200`, `status: ok`, `count: 30`;
+  - следующий статус: `youla_manual_source_poc`, без scheduler и без фоновых повторов.
 - Для следующих запусков POC worker добавлен diagnostic hook:
   - при `blocked`/`captcha` запускает контрольный `Duff89/parser_avito` probe;
   - пишет `block_diagnostic.json` и `duff89_probe_report.json` рядом с job report;

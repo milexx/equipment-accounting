@@ -1,5 +1,38 @@
 # Sessions
 
+## 2026-06-21
+
+Контекст: продолжение направления "Оценщик"/market source research после Day 4 Avito, ветка `dev`.
+
+Что сделано:
+
+- Проверена Юла как возможный второй экспериментальный источник цен.
+- HTML `https://youla.ru/` и search URL вернули `HTTP 200` с текущего сервера, без Avito-подобного `HTTP 403`.
+- Из `window.__YOULA_STATE__` получены публичные endpoint-параметры: `apiFederationUri`, `apiClientId`, anonymous `uid`, geolocation.
+- В JS-бандлах найден GraphQL-запрос `catalogProductsBoard`.
+- Выполнен один контрольный POST на `https://api-gw.youla.ru/graphql` по запросу `Lenovo ThinkPad T14`; результат `HTTP 200`, получены карточки с ценами, URL, городом и cursor.
+- Добавлен отдельный ручной POC для Юлы без scheduler и без интеграции в production pricing flow.
+- POC-скрипт проверен: `HTTP 200`, `status: ok`, `count: 30`, цены нормализуются из копеек в рубли.
+
+Ключевые файлы:
+
+- `docs/49_youla_source_discovery.md`
+- `research/youla-source-poc/README.md`
+- `research/youla-source-poc/fetch_youla_catalog.py`
+
+Решения и ограничения:
+
+- Рекомендован следующий статус: `youla_manual_source_poc`.
+- Юлу можно проверять только как ручной экспериментальный источник, с сохранением каждого запуска как snapshot.
+- Не подключать scheduler и не делать фоновые повторные запросы.
+- Avito после Day 4 остаётся `manual_experimental` / `blocked_recently`; не повторять blocked Avito same-day.
+
+Что осталось:
+
+- Один раз прогнать Youla POC по текущим monitored items с консервативным pacing.
+- Сравнить релевантность и медианы Youla с последними успешными Avito snapshots.
+- Если полезно, добавить `source=youla` в historical snapshots без изменения контракта `/pricing`.
+
 ## 2026-06-18
 
 Контекст: продолжение работы по проекту `equipment-accounting`, ветка `dev`, направление "Оценщик"/Avito price monitoring research.
