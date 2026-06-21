@@ -13,12 +13,19 @@
 - Выполнен один контрольный POST на `https://api-gw.youla.ru/graphql` по запросу `Lenovo ThinkPad T14`; результат `HTTP 200`, получены карточки с ценами, URL, городом и cursor.
 - Добавлен отдельный ручной POC для Юлы без scheduler и без интеграции в production pricing flow.
 - POC-скрипт проверен: `HTTP 200`, `status: ok`, `count: 30`, цены нормализуются из копеек в рубли.
+- Реализована fallback-chain для ручного worker-прогона: `avito -> avito_duff89 -> youla`.
+- Duff89 probe теперь сохраняет XLSX, нормализует объявления в `duff89_normalized_listings.json` и может стать источником snapshot, а не только диагностикой.
+- Worker теперь строит итоговый `daily_snapshot.json` по первому успешному источнику и сохраняет `source: avito`, `source: avito_duff89` или `source: youla`.
+- Локальный ignored `research/avito-monitor-worker-poc/config/search_jobs.json` настроен с включёнными Duff89 и Youla fallback для следующего ручного теста.
 
 Ключевые файлы:
 
 - `docs/49_youla_source_discovery.md`
+- `docs/50_price_monitoring_fallback_chain.md`
 - `research/youla-source-poc/README.md`
 - `research/youla-source-poc/fetch_youla_catalog.py`
+- `research/avito-monitor-worker-poc/src/worker.py`
+- `research/avito-monitor-worker-poc/scripts/duff89_probe.py`
 
 Решения и ограничения:
 
@@ -26,11 +33,12 @@
 - Юлу можно проверять только как ручной экспериментальный источник, с сохранением каждого запуска как snapshot.
 - Не подключать scheduler и не делать фоновые повторные запросы.
 - Avito после Day 4 остаётся `manual_experimental` / `blocked_recently`; не повторять blocked Avito same-day.
+- Fallback-chain не отменяет ограничение: manual only, no scheduler, no retry loop.
 
 Что осталось:
 
-- Один раз прогнать Youla POC по текущим monitored items с консервативным pacing.
-- Сравнить релевантность и медианы Youla с последними успешными Avito snapshots.
+- Один раз прогнать всю fallback-chain по текущим monitored items с консервативным pacing.
+- Сравнить релевантность и медианы fallback source с последними успешными Avito snapshots.
 - Если полезно, добавить `source=youla` в historical snapshots без изменения контракта `/pricing`.
 
 ## 2026-06-18

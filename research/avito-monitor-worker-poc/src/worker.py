@@ -10,7 +10,7 @@ from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 from bs4 import BeautifulSoup
 from curl_cffi import requests
@@ -207,6 +207,7 @@ def calculate_snapshot(
     normalized: list[dict[str, Any]],
     relevant: list[dict[str, Any]],
     fetched_at: str,
+    source: str = "avito",
 ) -> dict[str, Any]:
     prices = [item["price"] for item in relevant]
     status = "success" if prices else "no_data"
@@ -214,7 +215,7 @@ def calculate_snapshot(
         "job_code": job["code"],
         "position_name": job["position_name"],
         "snapshot_date": fetched_at[:10],
-        "source": "avito",
+        "source": source,
         "status": status,
         "raw_count": raw_count,
         "normalized_count": len(normalized),
@@ -227,6 +228,60 @@ def calculate_snapshot(
         "currency": "RUB",
         "fetched_at": fetched_at,
     }
+
+
+def persist_classified_snapshot(
+    job: dict[str, Any],
+    fetched_at: str,
+    job_dir: Path,
+    source: str,
+    raw_count: int,
+    normalized: list[dict[str, Any]],
+    extra_report_fields: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    relevant: list[dict[str, Any]] = []
+    unknown: list[dict[str, Any]] = []
+    rejected: list[dict[str, Any]] = []
+    for item in normalized:
+        item = {**item, "source": source, "job_code": job["code"], "fetched_at": fetched_at}
+        relevance_status, reject_reasons = classify_listing(item, job)
+        item_with_relevance = {
+            **item,
+            "relevance_status": relevance_status,
+            "reject_reasons": reject_reasons,
+        }
+        if relevance_status == "relevant":
+            relevant.append(item_with_relevance)
+        elif relevance_status == "unknown":
+            unknown.append(item_with_relevance)
+        else:
+            rejected.append(item_with_relevance)
+
+    classified = relevant + unknown + rejected
+    snapshot = calculate_snapshot(job, raw_count, classified, relevant, fetched_at, source=source)
+
+    write_json(job_dir / f"raw_listings_{source}.json", normalized)
+    write_json(job_dir / "normalized_listings.json", classified)
+    write_json(job_dir / "relevant_listings.json", relevant)
+    write_json(job_dir / "unknown_listings.json", unknown)
+    write_json(job_dir / "rejected_listings.json", rejected)
+    write_json(job_dir / "daily_snapshot.json", snapshot)
+
+    report = {
+        "job_code": job["code"],
+        "source": source,
+        "status": snapshot["status"],
+        "items_found": raw_count,
+        "items_normalized": len(normalized),
+        "items_relevant": len(relevant),
+        "items_unknown": len(unknown),
+        "items_rejected": len(rejected),
+        "fetched_at": fetched_at,
+    }
+    if extra_report_fields:
+        report.update(extra_report_fields)
+    write_json(job_dir / "job_report.json", report)
+    return report
 
 
 def format_diagnostic_command(command: list[str], job: dict[str, Any], job_dir: Path) -> list[str]:
@@ -303,6 +358,193 @@ def run_block_diagnostic(
     return result
 
 
+YOULA_CATALOG_QUERY = """
+query catalogProductsBoard($sort: Sort, $attributes: [AttributeItem!], $location: LocationInput, $cursor: Cursor!, $search: String, $datePublished: DateInput) {
+  feed(input: {sort: $sort, attributes: $attributes, location: $location, search: $search, datePublished: $datePublished}, after: $cursor) {
+    items {
+      ... on PromotedProductItem {
+        product: productPromoted {
+          id
+          categoryId: category
+          subcategoryId: subcategory
+          price { realPrice { price } realPriceText discount }
+          url
+          name
+          location { cityName }
+          distanceText
+        }
+      }
+      ... on ProductItem {
+        product {
+          id
+          categoryId: category
+          subcategoryId: subcategory
+          price { realPrice { price } realPriceText discount }
+          url
+          name
+          location { cityName }
+          distanceText
+        }
+      }
+    }
+    pageInfo { cursor hasNextPage productsAnalytics { searchId } }
+  }
+}
+""".strip()
+
+
+def normalize_youla_item(item: dict[str, Any]) -> dict[str, Any] | None:
+    product = item.get("product")
+    if not isinstance(product, dict):
+        return None
+    price = product.get("price") or {}
+    real_price = price.get("realPrice") or {}
+    raw_price = real_price.get("price")
+    title = product.get("name")
+    url = product.get("url")
+    if not title or not isinstance(raw_price, int | float) or not url:
+        return None
+    return {
+        "source": "youla",
+        "external_id": product.get("id"),
+        "title": str(title),
+        "description": "",
+        "price": int(raw_price / 100),
+        "currency": "RUB",
+        "url": f"https://youla.ru{url}" if isinstance(url, str) and url.startswith("/") else str(url),
+        "location": (product.get("location") or {}).get("cityName"),
+        "published_at": None,
+        "raw_payload": product,
+    }
+
+
+def fetch_youla_listings(job: dict[str, Any], timeout: int) -> tuple[int | None, list[dict[str, Any]], dict[str, Any]]:
+    search = job.get("youla_search") or job.get("position_name") or job["code"]
+    payload = {
+        "operationName": "catalogProductsBoard",
+        "variables": {
+            "sort": "DEFAULT",
+            "attributes": [{"slug": "categories", "value": [""], "from": None, "to": None}],
+            "location": {"latitude": 55.750718, "longitude": 37.617661},
+            "search": search,
+            "cursor": "",
+        },
+        "query": YOULA_CATALOG_QUERY,
+    }
+    headers = {
+        "accept": "*/*",
+        "content-type": "application/json",
+        "origin": "https://youla.ru",
+        "referer": f"https://youla.ru/all?q={quote(str(search))}",
+        "user-agent": "Mozilla/5.0 equipment-accounting-youla-poc/0.1",
+        "x-app-id": "web/3",
+        "appId": "web/3",
+        "x-uid": "6a384e7d63341",
+        "uid": "6a384e7d63341",
+        "x-offset-utc": "-25200",
+    }
+    response = requests.post("https://api-gw.youla.ru/graphql", json=payload, headers=headers, timeout=timeout)
+    data = response.json()
+    feed = ((data.get("data") or {}).get("feed") or {})
+    raw_items = feed.get("items") or []
+    listings = [
+        normalized
+        for item in raw_items
+        if isinstance(item, dict)
+        for normalized in [normalize_youla_item(item)]
+        if normalized is not None
+    ]
+    return response.status_code, listings, data
+
+
+def try_duff89_fallback(
+    job: dict[str, Any],
+    fetched_at: str,
+    job_dir: Path,
+    block_diagnostic: dict[str, Any] | None,
+    primary_report: dict[str, Any],
+) -> dict[str, Any] | None:
+    diagnostic = primary_report.get("block_diagnostic") or run_block_diagnostic(job, job_dir, block_diagnostic)
+    if not isinstance(diagnostic, dict) or diagnostic.get("status") != "success":
+        return None
+    payload = load_json(job_dir / "duff89_normalized_listings.json", {})
+    items = payload.get("items") if isinstance(payload, dict) else None
+    if not isinstance(items, list) or not items:
+        return None
+    return persist_classified_snapshot(
+        job,
+        fetched_at,
+        job_dir,
+        "avito_duff89",
+        len(items),
+        [item for item in items if isinstance(item, dict)],
+        {
+            "fallback_from": "avito",
+            "primary_status": primary_report.get("status"),
+            "primary_http_status": primary_report.get("http_status"),
+            "block_diagnostic": diagnostic,
+        },
+    )
+
+
+def try_youla_fallback(
+    job: dict[str, Any],
+    fetched_at: str,
+    job_dir: Path,
+    youla_fallback: dict[str, Any] | None,
+    primary_report: dict[str, Any],
+) -> dict[str, Any] | None:
+    if not youla_fallback or not youla_fallback.get("enabled"):
+        return None
+    timeout = int(youla_fallback.get("timeout_seconds") or 20)
+    try:
+        http_status, listings, raw_payload = fetch_youla_listings(job, timeout)
+    except Exception as exc:
+        write_json(
+            job_dir / "youla_fallback_report.json",
+            {"status": "failed", "error": f"{type(exc).__name__}: {exc}"},
+        )
+        return None
+    write_json(job_dir / "youla_raw_response.json", raw_payload)
+    fallback_report = {"status": "success" if http_status == 200 and listings else "no_data", "http_status": http_status, "count": len(listings)}
+    write_json(job_dir / "youla_fallback_report.json", fallback_report)
+    if fallback_report["status"] != "success":
+        return None
+    return persist_classified_snapshot(
+        job,
+        fetched_at,
+        job_dir,
+        "youla",
+        len(listings),
+        listings,
+        {
+            "fallback_from": "avito",
+            "primary_status": primary_report.get("status"),
+            "primary_http_status": primary_report.get("http_status"),
+            "youla_http_status": http_status,
+        },
+    )
+
+
+def apply_fallback_chain(
+    job: dict[str, Any],
+    fetched_at: str,
+    job_dir: Path,
+    primary_report: dict[str, Any],
+    block_diagnostic: dict[str, Any] | None,
+    youla_fallback: dict[str, Any] | None,
+) -> dict[str, Any]:
+    if primary_report.get("status") == "success":
+        return primary_report
+    duff89_report = try_duff89_fallback(job, fetched_at, job_dir, block_diagnostic, primary_report)
+    if duff89_report and duff89_report.get("status") == "success":
+        return duff89_report
+    youla_report = try_youla_fallback(job, fetched_at, job_dir, youla_fallback, primary_report)
+    if youla_report and youla_report.get("status") == "success":
+        return youla_report
+    return primary_report
+
+
 def process_html(
     job: dict[str, Any],
     fetched_at: str,
@@ -358,43 +600,10 @@ def process_html(
         if (normalized_item := normalize_listing(item, job, fetched_at)) is not None
     ]
 
-    relevant: list[dict[str, Any]] = []
-    unknown: list[dict[str, Any]] = []
-    rejected: list[dict[str, Any]] = []
-    for item in normalized:
-        relevance_status, reject_reasons = classify_listing(item, job)
-        item_with_relevance = {
-            **item,
-            "relevance_status": relevance_status,
-            "reject_reasons": reject_reasons,
-        }
-        if relevance_status == "relevant":
-            relevant.append(item_with_relevance)
-        elif relevance_status == "unknown":
-            unknown.append(item_with_relevance)
-        else:
-            rejected.append(item_with_relevance)
-
-    classified = relevant + unknown + rejected
-    snapshot = calculate_snapshot(job, len(raw_items), classified, relevant, fetched_at)
-
-    write_json(job_dir / "normalized_listings.json", classified)
-    write_json(job_dir / "relevant_listings.json", relevant)
-    write_json(job_dir / "unknown_listings.json", unknown)
-    write_json(job_dir / "rejected_listings.json", rejected)
-    write_json(job_dir / "daily_snapshot.json", snapshot)
-
-    report = {
-        "job_code": job["code"],
-        "status": snapshot["status"],
+    report = persist_classified_snapshot(job, fetched_at, job_dir, "avito", len(raw_items), normalized)
+    report.update({
         "http_status": status_code,
-        "items_found": len(raw_items),
-        "items_normalized": len(normalized),
-        "items_relevant": len(relevant),
-        "items_unknown": len(unknown),
-        "items_rejected": len(rejected),
-        "fetched_at": fetched_at,
-    }
+    })
     write_json(job_dir / "job_report.json", report)
     return report
 
@@ -404,6 +613,7 @@ def run_job(
     timeout: int,
     run_dir: Path,
     block_diagnostic: dict[str, Any] | None = None,
+    youla_fallback: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     fetched_at = iso(utc_now())
     job_dir = run_dir / job["code"]
@@ -419,9 +629,10 @@ def run_job(
             "fetched_at": fetched_at,
         }
         write_json(job_dir / "job_report.json", report)
-        return report
+        return apply_fallback_chain(job, fetched_at, job_dir, report, block_diagnostic, youla_fallback)
 
-    return process_html(job, fetched_at, job_dir, status_code, headers, html_text, block_diagnostic)
+    report = process_html(job, fetched_at, job_dir, status_code, headers, html_text, block_diagnostic)
+    return apply_fallback_chain(job, fetched_at, job_dir, report, block_diagnostic, youla_fallback)
 
 
 def live_run_exists_for_date(runs_dir: Path, run_date: str) -> tuple[bool, dict[str, Any] | None]:
@@ -482,6 +693,7 @@ def main() -> int:
                 config.get("timeout_seconds", 20),
                 run_dir,
                 config.get("block_diagnostic"),
+                config.get("youla_fallback"),
             )
         )
 
@@ -562,6 +774,10 @@ def validate_config(config: dict[str, Any]) -> tuple[bool, list[str], dict[str, 
             isinstance(config.get("block_diagnostic"), dict)
             and config["block_diagnostic"].get("enabled")
         ),
+        "youla_fallback_enabled": bool(
+            isinstance(config.get("youla_fallback"), dict)
+            and config["youla_fallback"].get("enabled")
+        ),
     }
 
     block_diagnostic = config.get("block_diagnostic")
@@ -576,6 +792,10 @@ def validate_config(config: dict[str, Any]) -> tuple[bool, list[str], dict[str, 
                 or not all(isinstance(part, str) for part in command)
             ):
                 errors.append("block_diagnostic.command must be a non-empty list of strings")
+
+    youla_fallback = config.get("youla_fallback")
+    if youla_fallback is not None and not isinstance(youla_fallback, dict):
+        errors.append("youla_fallback must be an object")
 
     return not errors, errors, summary
 

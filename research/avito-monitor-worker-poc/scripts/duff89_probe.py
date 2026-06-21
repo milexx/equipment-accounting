@@ -3,11 +3,51 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 
 def write_json(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def read_xlsx_listings(path: Path, job_code: str | None) -> list[dict[str, Any]]:
+    if not path.exists():
+        return []
+
+    from openpyxl import load_workbook
+
+    workbook = load_workbook(path)
+    sheet = workbook.active
+    rows = list(sheet.iter_rows(values_only=True))
+    if len(rows) < 2:
+        return []
+
+    headers = [str(value or "") for value in rows[0]]
+    listings = []
+    for row in rows[1:]:
+        record = dict(zip(headers, row))
+        title = record.get("Название")
+        price = record.get("Цена")
+        url = record.get("URL")
+        if not title or not isinstance(price, int | float) or not url:
+            continue
+        listings.append(
+            {
+                "source": "avito_duff89",
+                "job_code": job_code,
+                "external_id": str(url).rstrip("/").split("/")[-1],
+                "title": str(title),
+                "description": str(record.get("Описание") or ""),
+                "price": int(price),
+                "currency": "RUB",
+                "url": str(url),
+                "location": record.get("Адрес"),
+                "published_at": None,
+                "raw_payload": record,
+            }
+        )
+    return listings
 
 
 def main() -> int:
@@ -39,6 +79,9 @@ def main() -> int:
     workspace.mkdir(parents=True, exist_ok=True)
     (workspace / "logs").mkdir(exist_ok=True)
     (workspace / "result").mkdir(exist_ok=True)
+    result_path = workspace / "result" / "avito.xlsx"
+    if result_path.exists():
+        result_path.unlink()
 
     sys.path.insert(0, str(repo))
     os.chdir(workspace)
@@ -67,7 +110,7 @@ def main() -> int:
             one_time_start=True,
             one_file_for_link=False,
             parse_views=False,
-            save_xlsx=False,
+            save_xlsx=True,
             use_webdriver=False,
             use_bypass_api=False,
             cookies_api_key="",
@@ -86,9 +129,11 @@ def main() -> int:
         )
         parser_instance = AvitoParse(config)
         parser_instance.parse()
+        listings = read_xlsx_listings(result_path, args.job_code)
+        write_json(job_dir / "duff89_normalized_listings.json", {"items": listings})
         payload = {
             "status": "success"
-            if parser_instance.good_request_count > 0 and parser_instance.bad_request_count == 0
+            if parser_instance.good_request_count > 0 and parser_instance.bad_request_count == 0 and listings
             else "failed",
             "provider": "Duff89/parser_avito",
             "repo": str(repo),
@@ -96,6 +141,8 @@ def main() -> int:
             "url": args.url,
             "good_request_count": parser_instance.good_request_count,
             "bad_request_count": parser_instance.bad_request_count,
+            "listings_count": len(listings),
+            "result_path": str(result_path),
             "workspace": str(workspace),
         }
     except Exception as exc:

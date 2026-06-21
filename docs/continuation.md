@@ -97,6 +97,12 @@
   - добавлен ручной POC `research/youla-source-poc/fetch_youla_catalog.py`;
   - POC-скрипт проверен: `HTTP 200`, `status: ok`, `count: 30`;
   - следующий статус: `youla_manual_source_poc`, без scheduler и без фоновых повторов.
+- Реализована fallback-chain оценщика для ручных прогонов:
+  - сначала штатный Avito worker;
+  - если он не дал `success`, пробуется Duff89/parser_avito;
+  - если Duff89 не дал usable listings, пробуется Youla GraphQL;
+  - итоговый `daily_snapshot.json` получает source первого успешного источника: `avito`, `avito_duff89` или `youla`;
+  - blocked Avito сохраняется как контекст `primary_status`, но не становится итоговой ценой, если fallback дал данные.
 - Для следующих запусков POC worker добавлен diagnostic hook:
   - при `blocked`/`captcha` запускает контрольный `Duff89/parser_avito` probe;
   - пишет `block_diagnostic.json` и `duff89_probe_report.json` рядом с job report;

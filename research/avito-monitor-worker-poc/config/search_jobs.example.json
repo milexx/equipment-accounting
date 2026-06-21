@@ -19,6 +19,10 @@
       "{job_dir}"
     ]
   },
+  "youla_fallback": {
+    "enabled": false,
+    "timeout_seconds": 20
+  },
   "jobs": [
     {
       "code": "kyocera_m2040dn",

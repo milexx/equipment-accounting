@@ -124,6 +124,20 @@ class WorkerSnapshotTest(unittest.TestCase):
         self.assertIsNone(snapshot["max_price"])
         self.assertIsNone(snapshot["median_price"])
 
+    def test_snapshot_can_record_fallback_source(self) -> None:
+        job = {"code": "test", "position_name": "Test"}
+
+        snapshot = worker.calculate_snapshot(
+            job,
+            1,
+            [{"price": 100, "relevance_status": "relevant"}],
+            [{"price": 100, "relevance_status": "relevant"}],
+            "2026-06-18T00:00:00Z",
+            source="youla",
+        )
+
+        self.assertEqual(snapshot["source"], "youla")
+
 
 class WorkerAnalyzeRunTest(unittest.TestCase):
     def test_analyze_run_reports_html_findings_and_reasons(self) -> None:
@@ -240,6 +254,72 @@ class WorkerBlockDiagnosticTest(unittest.TestCase):
             self.assertEqual(report["status"], "blocked")
             self.assertEqual(report["block_diagnostic"]["status"], "success")
             self.assertTrue((job_dir / "block_diagnostic.json").exists())
+
+
+class WorkerFallbackChainTest(unittest.TestCase):
+    def test_normalize_youla_item_converts_kopecks_to_rubles(self) -> None:
+        item = {
+            "product": {
+                "id": "1",
+                "name": "Lenovo ThinkPad T14",
+                "price": {"realPrice": {"price": 4500000}, "realPriceText": "45 000 ₽"},
+                "url": "/moskva/test",
+                "location": {"cityName": "Москва"},
+            }
+        }
+
+        listing = worker.normalize_youla_item(item)
+
+        self.assertIsNotNone(listing)
+        assert listing is not None
+        self.assertEqual(listing["source"], "youla")
+        self.assertEqual(listing["price"], 45000)
+        self.assertEqual(listing["url"], "https://youla.ru/moskva/test")
+
+    def test_duff89_fallback_builds_success_snapshot_from_probe_json(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            job_dir = Path(tmp) / "job1"
+            job_dir.mkdir()
+            job = {
+                "code": "job1",
+                "position_name": "Lenovo ThinkPad T14",
+                "search_url": "https://www.avito.ru/all?q=Lenovo+ThinkPad+T14",
+                "required_terms": ["thinkpad", "t14"],
+                "negative_terms": [],
+                "price_min": 10000,
+                "price_max": 150000,
+            }
+            (job_dir / "duff89_normalized_listings.json").write_text(
+                json.dumps(
+                    {
+                        "items": [
+                            {
+                                "source": "avito_duff89",
+                                "title": "Lenovo ThinkPad T14",
+                                "description": "Рабочий ноутбук",
+                                "price": 45000,
+                                "currency": "RUB",
+                                "url": "https://www.avito.ru/item",
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            report = worker.try_duff89_fallback(
+                job,
+                "2026-06-21T00:00:00Z",
+                job_dir,
+                None,
+                {"status": "blocked", "http_status": 403, "block_diagnostic": {"status": "success"}},
+            )
+
+        self.assertIsNotNone(report)
+        assert report is not None
+        self.assertEqual(report["status"], "success")
+        self.assertEqual(report["source"], "avito_duff89")
+        self.assertEqual(report["items_relevant"], 1)
 
 
 class WorkerConfigValidationTest(unittest.TestCase):
