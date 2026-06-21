@@ -50,12 +50,12 @@
               <div>
                 <span>Последняя оценка</span>
                 <strong>{{ format_price(chart.latest_success_median) }}</strong>
-                <em>{{ chart.latest_success_date_label or "нет успешных данных" }}</em>
+                <em>{{ chart.latest_success_date_label or "нет успешных данных" }}{% if chart.latest_success_source_code %} / {{ chart.latest_success_source_code }}{% endif %}</em>
               </div>
               <div>
                 <span>Источник сейчас</span>
                 <strong class="pricing-state-{{ chart.latest_status }}">{{ status_labels[chart.latest_status] }}</strong>
-                <em>{{ chart.latest_date_label }} / {{ chart.latest_run_id }}</em>
+                <em>{{ chart.latest_source_code }} / {{ chart.latest_date_label }} / {{ chart.latest_run_id }}</em>
               </div>
             </div>
 
@@ -89,7 +89,7 @@
               {% for point in chart.points %}
                 <div>
                   <span>{{ point.date_label }}</span>
-                  <strong>Оценка</strong>
+                  <strong>{{ point.source_code }}</strong>
                   <em>{{ format_price(point.median_price) }}</em>
                 </div>
               {% else %}
@@ -114,6 +114,7 @@
               <th>Позиция</th>
               <th>Дата</th>
               <th>Run</th>
+              <th>Источник</th>
               <th>Статус</th>
               <th>Relevant</th>
               <th>Min</th>
@@ -127,6 +128,7 @@
                 <td>{{ snapshot.monitored_item.name }}</td>
                 <td>{{ snapshot.snapshot_date }}</td>
                 <td><code>{{ snapshot.scrape_run.external_run_id }}</code></td>
+                <td><code>{{ snapshot.source.code }}</code></td>
                 <td>
                   <span class="status-badge pricing-status-{{ snapshot.status.value }}">
                     {{ status_labels[snapshot.status.value] }}
@@ -139,7 +141,7 @@
               </tr>
             {% else %}
               <tr>
-                <td colspan="8" class="empty">Нет сохранённых snapshots.</td>
+                <td colspan="9" class="empty">Нет сохранённых snapshots.</td>
               </tr>
             {% endfor %}
           </tbody>

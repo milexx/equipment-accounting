@@ -109,6 +109,25 @@ class PricingServiceTest(unittest.TestCase):
         self.assertEqual(len(snapshots), 2)
         self.assertEqual([snapshot.median_price for snapshot in snapshots], [Decimal("30000.00"), Decimal("32000.00")])
 
+    def test_import_uses_snapshot_and_listing_fallback_source(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = _write_sample_run(Path(tmp), source="youla", run_id="fallback1")
+
+            result = self.service.import_poc_run(run_dir)
+
+        self.assertEqual(result.snapshots_saved, 2)
+        youla = self.db.scalar(select(MarketSource).where(MarketSource.code == "youla"))
+        self.assertIsNotNone(youla)
+        snapshot = self.db.scalar(
+            select(DailyPriceSnapshot)
+            .join(MonitoredItem)
+            .where(MonitoredItem.code == "lenovo_t14")
+        )
+        self.assertIsNotNone(snapshot)
+        self.assertEqual(snapshot.source_id, youla.id)
+        observations = self.db.scalars(select(PriceObservation)).all()
+        self.assertEqual({observation.source_id for observation in observations}, {youla.id})
+
     def test_calculate_snapshot_uses_observation_prices(self) -> None:
         source = self.service.get_or_create_source(code="avito", name="Avito")
         category = self.service.get_or_create_category(code="used_equipment", name="Б/у оборудование")
@@ -163,7 +182,13 @@ class PricingServiceTest(unittest.TestCase):
         self.assertEqual(snapshot["median_price"], Decimal("20000"))
 
 
-def _write_sample_run(root: Path, *, run_id: str = "run1", lenovo_median: int = 30000) -> Path:
+def _write_sample_run(
+    root: Path,
+    *,
+    run_id: str = "run1",
+    lenovo_median: int = 30000,
+    source: str = "avito",
+) -> Path:
     run_dir = root / run_id
     lenovo_dir = run_dir / "lenovo_t14"
     dell_dir = run_dir / "dell_r740"
@@ -184,6 +209,7 @@ def _write_sample_run(root: Path, *, run_id: str = "run1", lenovo_median: int = 
             "job_reports": [
                 {
                     "job_code": "lenovo_t14",
+                    "source": source,
                     "status": "success",
                     "http_status": 200,
                     "items_found": 2,
@@ -211,7 +237,7 @@ def _write_sample_run(root: Path, *, run_id: str = "run1", lenovo_median: int = 
             "job_code": "lenovo_t14",
             "position_name": "Lenovo ThinkPad T14",
             "snapshot_date": "2026-06-20",
-            "source": "avito",
+            "source": source,
             "status": "success",
             "raw_count": 2,
             "normalized_count": 2,
@@ -227,7 +253,7 @@ def _write_sample_run(root: Path, *, run_id: str = "run1", lenovo_median: int = 
     )
     _write_json(
         lenovo_dir / "relevant_listings.json",
-        [_listing("a1", 25000), _listing("a2", 35000)],
+        [_listing("a1", 25000, source=source), _listing("a2", 35000, source=source)],
     )
     _write_json(
         dell_dir / "job_report.json",
@@ -244,9 +270,9 @@ def _write_sample_run(root: Path, *, run_id: str = "run1", lenovo_median: int = 
     return run_dir
 
 
-def _listing(external_id: str, price: int) -> dict:
+def _listing(external_id: str, price: int, *, source: str = "avito") -> dict:
     return {
-        "source": "avito",
+        "source": source,
         "job_code": "lenovo_t14",
         "external_id": external_id,
         "title": f"Listing {external_id}",

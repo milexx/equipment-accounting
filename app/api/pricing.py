@@ -20,6 +20,7 @@ templates = Jinja2Templates(directory="app/templates")
 class PricingPoint:
     run_id: str
     date_label: str
+    source_code: str
     status: str
     min_price: Decimal | None
     median_price: Decimal | None
@@ -41,10 +42,12 @@ class PricingChart:
     max_polyline: str
     points: list[PricingPoint]
     latest_status: str
+    latest_source_code: str
     latest_date_label: str
     latest_run_id: str
     latest_success_date_label: str | None
     latest_success_median: Decimal | None
+    latest_success_source_code: str | None
 
 
 @router.get("", response_class=HTMLResponse)
@@ -60,6 +63,7 @@ def pricing_index(
         .options(
             selectinload(DailyPriceSnapshot.monitored_item),
             selectinload(DailyPriceSnapshot.scrape_run),
+            selectinload(DailyPriceSnapshot.source),
         )
         .join(DailyPriceSnapshot.monitored_item)
         .join(DailyPriceSnapshot.scrape_run)
@@ -136,12 +140,14 @@ def build_charts(snapshots: list[DailyPriceSnapshot]) -> list[PricingChart]:
                 max_polyline=polyline(points, "y_max"),
                 points=points,
                 latest_status=latest_snapshot.status.value,
+                latest_source_code=latest_snapshot.source.code,
                 latest_date_label=latest_snapshot.snapshot_date.isoformat(),
                 latest_run_id=latest_snapshot.scrape_run.external_run_id,
                 latest_success_date_label=latest_success.snapshot_date.isoformat()
                 if latest_success
                 else None,
                 latest_success_median=latest_success.median_price if latest_success else None,
+                latest_success_source_code=latest_success.source.code if latest_success else None,
             )
         )
     return charts
@@ -159,6 +165,7 @@ def build_point(
     return PricingPoint(
         run_id=snapshot.scrape_run.external_run_id,
         date_label=snapshot.snapshot_date.isoformat(),
+        source_code=snapshot.source.code,
         status=snapshot.status.value,
         min_price=snapshot.min_price,
         median_price=snapshot.median_price,

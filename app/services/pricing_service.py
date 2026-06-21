@@ -54,6 +54,15 @@ class PricingService:
         self.db.flush()
         return source
 
+    def get_or_create_source_by_code(self, code: str | None) -> MarketSource:
+        source_code = code or "avito"
+        metadata = _source_metadata(source_code)
+        return self.get_or_create_source(
+            code=source_code,
+            name=metadata["name"],
+            base_url=metadata["base_url"],
+        )
+
     def get_or_create_category(self, *, code: str, name: str) -> PriceCategory:
         category = self.db.scalar(select(PriceCategory).where(PriceCategory.code == code))
         if category is not None:
@@ -238,7 +247,7 @@ class PricingService:
 
     def import_poc_run(self, run_dir: Path) -> PricingImportResult:
         run_report = _read_json(run_dir / "run_report.json")
-        source = self.get_or_create_source(code="avito", name="Avito", base_url="https://www.avito.ru")
+        source = self.get_or_create_source_by_code(run_report.get("source") or "avito")
         category = self.get_or_create_category(code="used_equipment", name="Б/у оборудование")
 
         run = self.create_or_update_run(
@@ -265,30 +274,39 @@ class PricingService:
             item_name = snapshot.get("position_name") or job_code
             item = self.get_or_create_monitored_item(category=category, code=job_code, name=item_name)
             status = PriceJobStatus(job_report.get("status", "parser_error"))
+            snapshot_source = self.get_or_create_source_by_code(
+                snapshot.get("source") or job_report.get("source") or "avito"
+            )
 
             if status == PriceJobStatus.success:
                 listings = _read_json(job_dir / "relevant_listings.json", default=[])
                 for listing in listings:
-                    self.add_observation(run=run, item=item, source=source, listing=listing)
+                    listing_source = self.get_or_create_source_by_code(
+                        listing.get("source") or snapshot_source.code
+                    )
+                    self.add_observation(run=run, item=item, source=listing_source, listing=listing)
                     observations_created += 1
 
             if snapshot:
-                self.save_snapshot(run=run, item=item, source=source, snapshot=snapshot)
+                self.save_snapshot(run=run, item=item, source=snapshot_source, snapshot=snapshot)
                 snapshots_saved += 1
             else:
+                fallback_snapshot = _snapshot_from_job_report(job_report)
+                fallback_source = self.get_or_create_source_by_code(fallback_snapshot.get("source"))
                 self.save_snapshot(
                     run=run,
                     item=item,
-                    source=source,
-                    snapshot=_snapshot_from_job_report(job_report),
+                    source=fallback_source,
+                    snapshot=fallback_snapshot,
                 )
                 snapshots_saved += 1
 
             if status not in {PriceJobStatus.success, PriceJobStatus.no_data}:
+                error_source = self.get_or_create_source_by_code(job_report.get("source") or "avito")
                 self.save_parser_error(
                     run=run,
                     item=item,
-                    source=source,
+                    source=error_source,
                     job_code=job_code,
                     status=status,
                     raw_report=job_report,
@@ -343,7 +361,7 @@ def _snapshot_from_job_report(job_report: dict[str, Any]) -> dict[str, Any]:
     return {
         "job_code": job_report["job_code"],
         "snapshot_date": fetched_at[:10] if isinstance(fetched_at, str) else None,
-        "source": "avito",
+        "source": job_report.get("source") or "avito",
         "status": job_report.get("status", "parser_error"),
         "raw_count": job_report.get("items_found", 0),
         "normalized_count": job_report.get("items_normalized", 0),
@@ -356,3 +374,12 @@ def _snapshot_from_job_report(job_report: dict[str, Any]) -> dict[str, Any]:
         "currency": "RUB",
         "fetched_at": fetched_at,
     }
+
+
+def _source_metadata(code: str) -> dict[str, str | None]:
+    metadata = {
+        "avito": {"name": "Avito", "base_url": "https://www.avito.ru"},
+        "avito_duff89": {"name": "Avito via Duff89", "base_url": "https://www.avito.ru"},
+        "youla": {"name": "Youla", "base_url": "https://youla.ru"},
+    }
+    return metadata.get(code, {"name": code, "base_url": None})

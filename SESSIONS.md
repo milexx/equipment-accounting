@@ -17,15 +17,22 @@
 - Duff89 probe теперь сохраняет XLSX, нормализует объявления в `duff89_normalized_listings.json` и может стать источником snapshot, а не только диагностикой.
 - Worker теперь строит итоговый `daily_snapshot.json` по первому успешному источнику и сохраняет `source: avito`, `source: avito_duff89` или `source: youla`.
 - Локальный ignored `research/avito-monitor-worker-poc/config/search_jobs.json` настроен с включёнными Duff89 и Youla fallback для следующего ручного теста.
+- Импорт `scripts/import_price_poc_run.py` через `PricingService` теперь сохраняет фактический source snapshot/listing.
+- `/pricing` показывает источник точки в карточке графика и отдельной колонкой в журнале.
+- Подготовлен runbook на следующий ручной fallback-прогон.
 
 Ключевые файлы:
 
 - `docs/49_youla_source_discovery.md`
 - `docs/50_price_monitoring_fallback_chain.md`
+- `docs/51_price_monitoring_fallback_runbook.md`
 - `research/youla-source-poc/README.md`
 - `research/youla-source-poc/fetch_youla_catalog.py`
 - `research/avito-monitor-worker-poc/src/worker.py`
 - `research/avito-monitor-worker-poc/scripts/duff89_probe.py`
+- `app/services/pricing_service.py`
+- `app/api/pricing.py`
+- `app/templates/pricing/index.html`
 
 Решения и ограничения:
 

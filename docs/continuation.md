@@ -103,6 +103,9 @@
   - если Duff89 не дал usable listings, пробуется Youla GraphQL;
   - итоговый `daily_snapshot.json` получает source первого успешного источника: `avito`, `avito_duff89` или `youla`;
   - blocked Avito сохраняется как контекст `primary_status`, но не становится итоговой ценой, если fallback дал данные.
+- Импорт POC run в БД теперь сохраняет фактический source snapshot/listing, а не принудительно `avito`.
+- UI `/pricing` показывает source ценовой точки в карточках и журнале.
+- Подготовлен runbook для следующего ручного fallback-прогона: `docs/51_price_monitoring_fallback_runbook.md`.
 - Для следующих запусков POC worker добавлен diagnostic hook:
   - при `blocked`/`captcha` запускает контрольный `Duff89/parser_avito` probe;
   - пишет `block_diagnostic.json` и `duff89_probe_report.json` рядом с job report;
