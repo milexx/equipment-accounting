@@ -316,3 +316,41 @@ parser_errors: 1
 - Live Avito не запускался.
 - Scheduler не подключался.
 - UI использует уже импортированные snapshots из dev DB.
+
+## 2026-06-21, Avito endurance Day 4
+
+Контекст: выполнен дополнительный live endurance run после Day 3, чтобы проверить устойчивость источника перед любым повышением автоматизации.
+
+Что сделано:
+
+- Preflight вернул `ready`; same-day live run отсутствовал.
+- Выполнен один live run: `20260621T131205Z`.
+- Результат: все 3 job получили `HTTP 403`:
+  - `dell_r740`: `blocked`, `access_restricted_ip`;
+  - `kyocera_m2040dn`: `blocked`, `access_restricted_ip`;
+  - `lenovo_t14`: `blocked`, `access_restricted_ip`.
+- Сгенерирован `docs/47_price_monitoring_endurance_day_4.md`.
+- Обновлён `docs/37_price_monitoring_gate_summary.md`.
+- Добавлен `docs/48_price_monitoring_gate_decision_after_day_4.md`.
+- Run импортирован в основную БД оценщика.
+
+Состояние dev DB после импорта:
+
+```text
+price_scrape_runs: 3
+price_observations: 146
+daily_price_snapshots: 9
+parser_errors: 4
+```
+
+Решение после Day 4:
+
+```text
+continue_endurance_with_automation_hold
+```
+
+Ограничения:
+
+- Повторный live Avito run 2026-06-21 UTC не выполнять.
+- Scheduler и unattended production runs не включать.
+- Avito остаётся experimental/manual source с явным отображением blocked-состояний.
