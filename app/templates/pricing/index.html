@@ -22,7 +22,7 @@
         <div>
           <div class="breadcrumbs"><a href="/">Главная</a> / оценщик</div>
           <h1>Оценщик</h1>
-          <p>История сохранённых запусков: медиана, минимум, максимум и статусы источника.</p>
+          <p>Ценовая история строится только по успешным оценкам. Блокировки хранятся отдельно как статус источника.</p>
         </div>
       </div>
 
@@ -30,7 +30,6 @@
         <span><i class="legend-line median"></i>Медиана</span>
         <span><i class="legend-line min"></i>Минимум</span>
         <span><i class="legend-line max"></i>Максимум</span>
-        <span><i class="legend-dot blocked"></i>Блокировка / нет данных</span>
       </div>
 
       <div class="pricing-grid">
@@ -44,6 +43,19 @@
               <div class="pricing-scale">
                 <strong>{{ chart.y_max_label }}</strong>
                 <span>{{ chart.y_min_label }}</span>
+              </div>
+            </div>
+
+            <div class="pricing-source-state">
+              <div>
+                <span>Последняя оценка</span>
+                <strong>{{ format_price(chart.latest_success_median) }}</strong>
+                <em>{{ chart.latest_success_date_label or "нет успешных данных" }}</em>
+              </div>
+              <div>
+                <span>Источник сейчас</span>
+                <strong class="pricing-state-{{ chart.latest_status }}">{{ status_labels[chart.latest_status] }}</strong>
+                <em>{{ chart.latest_date_label }} / {{ chart.latest_run_id }}</em>
               </div>
             </div>
 
@@ -69,8 +81,6 @@
                 {% if point.y_median is not none %}
                   <circle cx="{{ point.x }}" cy="{{ point.y_median }}" r="5" class="chart-dot median"></circle>
                   <title>{{ point.date_label }} median {{ format_price(point.median_price) }}</title>
-                {% else %}
-                  <circle cx="{{ point.x }}" cy="232" r="6" class="chart-dot blocked"></circle>
                 {% endif %}
               {% endfor %}
             </svg>
@@ -79,8 +89,14 @@
               {% for point in chart.points %}
                 <div>
                   <span>{{ point.date_label }}</span>
-                  <strong>{{ status_labels[point.status] }}</strong>
+                  <strong>Оценка</strong>
                   <em>{{ format_price(point.median_price) }}</em>
+                </div>
+              {% else %}
+                <div>
+                  <span>Нет успешных оценок</span>
+                  <strong>{{ status_labels[chart.latest_status] }}</strong>
+                  <em>-</em>
                 </div>
               {% endfor %}
             </div>
@@ -91,6 +107,7 @@
       </div>
 
       <div class="table-wrap">
+        <div class="table-caption">Журнал источника</div>
         <table>
           <thead>
             <tr>

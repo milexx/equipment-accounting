@@ -1038,13 +1038,6 @@ th {
   background: #075c3f;
 }
 
-.legend-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: #9b1c1c;
-}
-
 .pricing-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1067,6 +1060,49 @@ th {
   gap: 12px;
   padding: 14px;
   border-bottom: 1px solid #d9dee7;
+}
+
+.pricing-source-state {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-bottom: 1px solid #d9dee7;
+  background: #fbfcfe;
+}
+
+.pricing-source-state div {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-right: 1px solid #d9dee7;
+}
+
+.pricing-source-state div:last-child {
+  border-right: 0;
+}
+
+.pricing-source-state span,
+.pricing-source-state em {
+  color: #667085;
+  font-size: 12px;
+  font-style: normal;
+}
+
+.pricing-source-state strong {
+  font-size: 16px;
+}
+
+.pricing-state-success {
+  color: #075c3f;
+}
+
+.pricing-state-blocked,
+.pricing-state-captcha,
+.pricing-state-parser_error {
+  color: #9b1c1c;
+}
+
+.pricing-state-no_data {
+  color: #7a4a00;
 }
 
 .pricing-chart-head h2 {
@@ -1121,12 +1157,6 @@ th {
 
 .chart-dot.median {
   fill: #1769aa;
-  stroke: #fff;
-  stroke-width: 2;
-}
-
-.chart-dot.blocked {
-  fill: #9b1c1c;
   stroke: #fff;
   stroke-width: 2;
 }
@@ -1186,6 +1216,15 @@ th {
 .pricing-status-no_data {
   color: #7a4a00;
   background: #fff4d6;
+}
+
+.table-caption {
+  padding: 14px 20px;
+  border-bottom: 1px solid #d9dee7;
+  background: #fff;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .entry-form {
@@ -1368,6 +1407,7 @@ textarea {
   .filter-row-taxonomy,
   .filter-row-process,
   .filter-row-attributes,
+  .pricing-source-state,
   .pricing-point-list {
     grid-template-columns: 1fr;
   }

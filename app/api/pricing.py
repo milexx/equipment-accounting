@@ -40,6 +40,11 @@ class PricingChart:
     median_polyline: str
     max_polyline: str
     points: list[PricingPoint]
+    latest_status: str
+    latest_date_label: str
+    latest_run_id: str
+    latest_success_date_label: str | None
+    latest_success_median: Decimal | None
 
 
 @router.get("", response_class=HTMLResponse)
@@ -86,9 +91,16 @@ def build_charts(snapshots: list[DailyPriceSnapshot]) -> list[PricingChart]:
 
     charts = []
     for item_snapshots in grouped.values():
+        value_snapshots = [
+            snapshot
+            for snapshot in item_snapshots
+            if snapshot.min_price is not None
+            or snapshot.median_price is not None
+            or snapshot.max_price is not None
+        ]
         prices = [
             price
-            for snapshot in item_snapshots
+            for snapshot in value_snapshots
             for price in (snapshot.min_price, snapshot.median_price, snapshot.max_price)
             if price is not None
         ]
@@ -102,12 +114,17 @@ def build_charts(snapshots: list[DailyPriceSnapshot]) -> list[PricingChart]:
             build_point(
                 snapshot=snapshot,
                 index=index,
-                total=len(item_snapshots),
+                total=len(value_snapshots),
                 min_price=min_price,
                 max_price=max_price,
             )
-            for index, snapshot in enumerate(item_snapshots)
+            for index, snapshot in enumerate(value_snapshots)
         ]
+        latest_snapshot = item_snapshots[-1]
+        latest_success = next(
+            (snapshot for snapshot in reversed(item_snapshots) if snapshot.median_price is not None),
+            None,
+        )
         charts.append(
             PricingChart(
                 item_code=item_snapshots[0].monitored_item.code,
@@ -118,6 +135,13 @@ def build_charts(snapshots: list[DailyPriceSnapshot]) -> list[PricingChart]:
                 median_polyline=polyline(points, "y_median"),
                 max_polyline=polyline(points, "y_max"),
                 points=points,
+                latest_status=latest_snapshot.status.value,
+                latest_date_label=latest_snapshot.snapshot_date.isoformat(),
+                latest_run_id=latest_snapshot.scrape_run.external_run_id,
+                latest_success_date_label=latest_success.snapshot_date.isoformat()
+                if latest_success
+                else None,
+                latest_success_median=latest_success.median_price if latest_success else None,
             )
         )
     return charts
