@@ -186,7 +186,6 @@ def render_image(alt: str, source: str) -> str:
     return (
         '<figure class="documentation-figure">'
         f'<img src="{html.escape(source, quote=True)}" alt="{html.escape(alt, quote=True)}">'
-        f"<figcaption>{inline_format(alt)}</figcaption>"
         "</figure>"
     )
 
