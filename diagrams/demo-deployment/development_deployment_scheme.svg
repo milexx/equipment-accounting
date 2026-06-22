@@ -90,8 +90,8 @@
   <text class="small" x="627" y="735">метаданные хранятся в БД</text>
 
   <path class="arrow" d="M775 347 L775 385" />
-  <path class="arrow-orange" d="M775 508 L683 543" />
-  <path class="arrow-orange" d="M775 508 L867 543" />
+  <path class="arrow-orange" d="M745 508 C710 518 695 530 683 543" />
+  <path class="arrow-orange" d="M806 508 C836 518 854 530 867 543" />
   <path class="arrow-orange" d="M683 650 L683 670" />
   <path class="arrow-orange" d="M867 650 L867 670" />
 
