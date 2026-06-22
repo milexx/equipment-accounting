@@ -11,6 +11,12 @@ def write_json(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def json_safe(value: Any) -> Any:
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return value
+
+
 def read_xlsx_listings(path: Path, job_code: str | None) -> list[dict[str, Any]]:
     if not path.exists():
         return []
@@ -26,7 +32,7 @@ def read_xlsx_listings(path: Path, job_code: str | None) -> list[dict[str, Any]]
     headers = [str(value or "") for value in rows[0]]
     listings = []
     for row in rows[1:]:
-        record = dict(zip(headers, row))
+        record = {key: json_safe(value) for key, value in zip(headers, row)}
         title = record.get("Название")
         price = record.get("Цена")
         url = record.get("URL")
@@ -62,8 +68,8 @@ def main() -> int:
     if not args.url:
         raise SystemExit("--url is required")
 
-    repo = Path(args.repo)
-    job_dir = Path(args.job_dir)
+    repo = Path(args.repo).resolve()
+    job_dir = Path(args.job_dir).resolve()
     output_path = job_dir / "duff89_probe_report.json"
     if not repo.exists():
         payload = {

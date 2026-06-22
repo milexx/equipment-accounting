@@ -1,9 +1,11 @@
 import importlib.util
 import json
+import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 WORKER_PATH = Path(__file__).resolve().parents[1] / "src" / "worker.py"
@@ -256,6 +258,70 @@ class WorkerBlockDiagnosticTest(unittest.TestCase):
             self.assertEqual(report["status"], "blocked")
             self.assertEqual(report["block_diagnostic"]["status"], "success")
             self.assertTrue((job_dir / "block_diagnostic.json").exists())
+
+    def test_format_diagnostic_command_accepts_relative_job_dir(self) -> None:
+        job = {"code": "job1", "search_url": "https://www.avito.ru/all?q=Job+1"}
+        command = ["probe", "--job-dir", "{job_dir}", "--url", "{search_url}"]
+
+        rendered = worker.format_diagnostic_command(command, job, Path("runs/run1/job1"))
+
+        self.assertEqual(rendered[2], "runs/run1/job1")
+
+
+class Duff89ProbePathTest(unittest.TestCase):
+    def test_probe_resolves_job_dir_before_chdir(self) -> None:
+        probe_path = Path(__file__).resolve().parents[1] / "scripts" / "duff89_probe.py"
+        spec = importlib.util.spec_from_file_location("duff89_probe", probe_path)
+        probe = importlib.util.module_from_spec(spec)
+        assert spec is not None
+        assert spec.loader is not None
+        spec.loader.exec_module(probe)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo = root / "repo"
+            repo.mkdir()
+            job_dir = root / "job"
+            job_dir.mkdir()
+
+            class FakeParser:
+                def __init__(self, _config):
+                    self.good_request_count = 1
+                    self.bad_request_count = 0
+
+                def parse(self):
+                    return None
+
+            fake_dto = type(sys)("dto")
+            fake_dto.AvitoConfig = lambda **kwargs: kwargs
+            fake_parser_cls = type(sys)("parser_cls")
+            fake_parser_cls.AvitoParse = FakeParser
+            argv = [
+                "duff89_probe.py",
+                "--repo",
+                str(repo),
+                "--url",
+                "https://www.avito.ru/all?q=Job+1",
+                "--job-code",
+                "job1",
+                "--job-dir",
+                str(job_dir.relative_to(root)),
+            ]
+
+            with patch.object(sys, "argv", argv), patch.dict(
+                sys.modules,
+                {"dto": fake_dto, "parser_cls": fake_parser_cls},
+            ), patch.object(probe, "read_xlsx_listings", return_value=[{"title": "Job"}]):
+                current = Path.cwd()
+                try:
+                    os.chdir(root)
+                    exit_code = probe.main()
+                finally:
+                    os.chdir(current)
+
+            output = job_dir / "duff89_normalized_listings.json"
+            self.assertEqual(exit_code, 0)
+            self.assertTrue(output.exists())
 
 
 class WorkerFallbackChainTest(unittest.TestCase):

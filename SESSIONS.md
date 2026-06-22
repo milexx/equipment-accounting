@@ -1,5 +1,45 @@
 # Sessions
 
+## 2026-06-22
+
+Контекст: ручная проверка fallback-chain оценщика после настройки `Avito -> Duff89/parser_avito -> Youla`, ветка `dev`.
+
+Что сделано:
+
+- Выполнен один controlled manual run: `20260622T040909Z`.
+- Итоговый статус run: `success`, 3/3 job получили успешные snapshots.
+- Результаты:
+  - `kyocera_m2040dn`: `source=avito_duff89`, relevant 37, median 24999;
+  - `lenovo_t14`: `source=avito`, relevant 25, median 28000;
+  - `dell_r740`: `source=avito_duff89`, relevant 41, median 200000.
+- Найден и исправлен дефект Duff89 probe: относительный `job_dir` ломался после `os.chdir` в репозиторий Duff89, из-за чего XLSX был создан, но listings считались как 0.
+- Duff89 probe теперь резолвит `repo` и `job_dir` до смены директории и сериализует Excel datetime-like значения в JSON.
+- Run восстановлен offline из уже сохраненных Duff89 XLSX без нового Avito-запроса.
+- Run импортирован в БД: 103 observations, 3 snapshots, 0 parser errors.
+- `/pricing` проверен: графики и журнал показывают точки 2026-06-22 с фактическими источниками `avito` / `avito_duff89`.
+- Упрощен `scripts/import_price_poc_run.py`: убрана лишняя самоперезапускающаяся `python -c` обертка.
+
+Ключевые файлы:
+
+- `docs/52_price_monitoring_fallback_run_2026_06_22.md`
+- `research/avito-monitor-worker-poc/scripts/duff89_probe.py`
+- `research/avito-monitor-worker-poc/tests/test_worker.py`
+- `scripts/import_price_poc_run.py`
+
+Решения и ограничения:
+
+- Текущее решение: `keep_fallback_chain_for_mvp_manual`.
+- Fallback-chain полезна для MVP как ручной источник ценовой истории.
+- Scheduler, retry loop после block, proxy/cookies/CAPTCHA bypass остаются запрещены.
+- Не повторять live run в тот же UTC-день без явного controlled override.
+
+Проверки:
+
+- `research/avito-monitor-worker-poc/.venv/bin/python -m unittest discover -s research/avito-monitor-worker-poc/tests`: 29 tests OK.
+- `.venv/bin/python -m compileall scripts/import_price_poc_run.py`: OK.
+- `.venv/bin/python scripts/import_price_poc_run.py research/avito-monitor-worker-poc/runs/20260622T040909Z`: импорт OK вне sandbox.
+- `/pricing` через локальный HTTP показывает новые rows и graph points.
+
 ## 2026-06-21
 
 Контекст: продолжение направления "Оценщик"/market source research после Day 4 Avito, ветка `dev`.

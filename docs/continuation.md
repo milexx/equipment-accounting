@@ -106,6 +106,19 @@
 - Импорт POC run в БД теперь сохраняет фактический source snapshot/listing, а не принудительно `avito`.
 - UI `/pricing` показывает source ценовой точки в карточках и журнале.
 - Подготовлен runbook для следующего ручного fallback-прогона: `docs/51_price_monitoring_fallback_runbook.md`.
+- Выполнен первый ручной fallback-chain run 2026-06-22:
+  - run `20260622T040909Z`;
+  - итоговый статус `success`;
+  - `kyocera_m2040dn`: `source=avito_duff89`, relevant 37, median 24999;
+  - `lenovo_t14`: `source=avito`, relevant 25, median 28000;
+  - `dell_r740`: `source=avito_duff89`, relevant 41, median 200000;
+  - run импортирован в БД как 103 observations и 3 snapshots;
+  - `/pricing` показывает исторические точки 2026-06-22 с фактическим source.
+- Исправлен Duff89 probe:
+  - `job_dir` и `repo` резолвятся до `os.chdir`;
+  - Excel datetime-like значения сериализуются в JSON через `isoformat`;
+  - добавлены regression tests.
+- Упрощен `scripts/import_price_poc_run.py`: убрана лишняя самоперезапускающаяся `python -c` обертка.
 - Для следующих запусков POC worker добавлен diagnostic hook:
   - при `blocked`/`captcha` запускает контрольный `Duff89/parser_avito` probe;
   - пишет `block_diagnostic.json` и `duff89_probe_report.json` рядом с job report;

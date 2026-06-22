@@ -1,5 +1,4 @@
 import argparse
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -61,19 +60,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    if __package__ in {None, ""}:
-        completed = subprocess.run(
-            [
-                sys.executable,
-                "-c",
-                f"import os, sys; os.chdir({str(PROJECT_ROOT)!r}); "
-                "from scripts.import_price_poc_run import main; "
-                "sys.argv = ['import_price_poc_run.py', *sys.argv[1:]]; "
-                "raise SystemExit(main())",
-                *sys.argv[1:],
-            ],
-            cwd=PROJECT_ROOT,
-            check=False,
-        )
-        raise SystemExit(completed.returncode)
     raise SystemExit(main())
