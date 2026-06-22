@@ -381,6 +381,26 @@ p {
   background: transparent;
 }
 
+.documentation-figure {
+  margin: 18px 0 22px;
+}
+
+.documentation-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid #d9dee7;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.documentation-figure figcaption {
+  margin-top: 8px;
+  color: #667085;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
 .markdown-table-wrap {
   overflow-x: auto;
   margin: 14px 0;

@@ -32,6 +32,11 @@ DOCUMENTS = {
         "description": "Backend, база данных, frontend, хранение фото, авторизация и проверки.",
         "path": DOCS_ROOT / "13_tech_stack.md",
     },
+    "demo-deployment-scheme": {
+        "title": "Схема разработки и развертывания",
+        "description": "Как гибридная разработка, Git, демо VPS и будущий корпоративный контур связаны между собой.",
+        "path": DOCS_ROOT / "55_demo_deployment_scheme.md",
+    },
 }
 
 
@@ -126,6 +131,14 @@ def render_markdown(markdown: str) -> Markup:
             index = next_index
             continue
 
+        image = re.match(r"^!\[([^\]]*)\]\(([^)]+)\)$", stripped)
+        if image:
+            flush_paragraph()
+            close_list()
+            html_parts.append(render_image(image.group(1), image.group(2)))
+            index += 1
+            continue
+
         heading = re.match(r"^(#{1,4})\s+(.+)$", stripped)
         if heading:
             flush_paragraph()
@@ -167,6 +180,15 @@ def inline_format(text: str) -> str:
     escaped = re.sub(r"`([^`]+)`", r"<code>\1</code>", escaped)
     escaped = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", escaped)
     return escaped
+
+
+def render_image(alt: str, source: str) -> str:
+    return (
+        '<figure class="documentation-figure">'
+        f'<img src="{html.escape(source, quote=True)}" alt="{html.escape(alt, quote=True)}">'
+        f"<figcaption>{inline_format(alt)}</figcaption>"
+        "</figure>"
+    )
 
 
 def is_table_start(lines: list[str], index: int) -> bool:
