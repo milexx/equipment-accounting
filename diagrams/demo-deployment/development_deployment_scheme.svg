@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="920" viewBox="0 0 1600 920" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="940" viewBox="0 0 1600 940" role="img" aria-labelledby="title desc">
   <title id="title">Схема разработки, демо-развертывания и переноса в корпоративную среду</title>
   <desc id="desc">Схема показывает текущий путь разработки через GitHub на демо VPS и целевой путь через корпоративный GitLab, пайплайн и корпоративную среду с PostgreSQL, S3 и Keycloak.</desc>
   <defs>
@@ -35,7 +35,7 @@
     </marker>
   </defs>
 
-  <rect class="bg" x="0" y="0" width="1600" height="920" />
+  <rect class="bg" x="0" y="0" width="1600" height="940" />
 
   <text class="title" x="70" y="62">Как разрабатывается и разворачивается решение</text>
   <text class="subtitle" x="70" y="94">Текущий демо-контур на VPS и целевой перенос в корпоративную среду через GitLab и пайплайн</text>
@@ -137,17 +137,18 @@
   <path class="arrow-planned" d="M950 291 C1010 291 1045 281 1110 281" />
   <text class="label" x="972" y="267">зеркало в GitLab</text>
 
-  <rect class="box-soft" x="1070" y="805" width="475" height="86" />
+  <rect class="box-soft" x="1070" y="805" width="475" height="106" />
   <text class="text" x="1100" y="835">Обязательные условия промышленного контура</text>
   <text class="small" x="1100" y="858">HTTPS, резервные копии БД и фото,</text>
   <text class="small" x="1100" y="878">журналирование, мониторинг, регламент</text>
 
-  <rect class="box-warn" x="560" y="805" width="430" height="86" />
+  <rect class="box-warn" x="560" y="805" width="430" height="106" />
   <text class="text" x="590" y="835">Важно для встречи</text>
   <text class="small" x="590" y="858">VPS - демо-стенд.</text>
-  <text class="small" x="590" y="878">Корпоративный контур требует решения по инфраструктуре.</text>
+  <text class="small" x="590" y="878">Корпоративный контур требует отдельных</text>
+  <text class="small" x="590" y="898">решений по инфраструктуре и безопасности.</text>
 
-  <rect class="box-soft" x="55" y="805" width="430" height="86" />
+  <rect class="box-soft" x="55" y="805" width="430" height="106" />
   <text class="text" x="85" y="835">Что уже переносимо</text>
   <text class="small" x="85" y="858">код, миграции БД, настройки окружения,</text>
   <text class="small" x="85" y="878">файловое хранилище фото</text>
