@@ -40,24 +40,24 @@
   <text class="subtitle" x="70" y="94">Текущий демо-контур на VPS и целевой перенос в корпоративную среду через GitLab и пайплайн</text>
 
   <rect class="zone" x="55" y="130" width="430" height="650" />
-  <text class="zone-title" x="85" y="170">1. Разработка сейчас</text>
-  <text class="small" x="85" y="198">Рабочий проект и контроль изменений</text>
+  <text class="zone-title" x="85" y="170">1. Гибридная разработка</text>
+  <text class="small" x="85" y="198">Человек задает задачу, LLM пишет код</text>
 
   <rect class="box" x="95" y="235" width="350" height="112" />
-  <text class="text" x="122" y="270">Рабочая папка проекта</text>
-  <text class="small" x="122" y="302">/opt/workspace/projects/</text>
-  <text class="small" x="122" y="324">equipment-accounting</text>
-  <text class="tiny" x="122" y="342">код, документы, миграции, тесты</text>
+  <text class="text" x="122" y="270">Человек + LLM</text>
+  <text class="small" x="122" y="302">человек ставит задачу</text>
+  <text class="small" x="122" y="324">LLM пишет код и документы</text>
+  <text class="tiny" x="122" y="342">решения проверяются и фиксируются</text>
 
   <rect class="box-soft" x="95" y="390" width="350" height="118" />
-  <text class="text" x="122" y="426">Локальные проверки</text>
+  <text class="text" x="122" y="426">Проверки</text>
   <text class="small" x="122" y="458">тесты, ruff, compileall</text>
-  <text class="small" x="122" y="484">ручная проверка демо-страниц</text>
+  <text class="small" x="122" y="484">просмотр изменений человеком</text>
 
   <rect class="box" x="95" y="552" width="350" height="118" />
-  <text class="text" x="122" y="588">Git commit</text>
-  <text class="small" x="122" y="620">история изменений в ветке dev</text>
-  <text class="small" x="122" y="646">каждый этап фиксируется отдельно</text>
+  <text class="text" x="122" y="588">Git</text>
+  <text class="small" x="122" y="620">commit в ветку dev</text>
+  <text class="small" x="122" y="646">история изменений прозрачна</text>
 
   <path class="arrow" d="M270 347 L270 385" />
   <path class="arrow" d="M270 508 L270 547" />
