@@ -1,69 +1,69 @@
-# Avito Primary vs Duff89 Blocking Analysis
+# Анализ Блокировки Avito И Успеха Duff89
 
-Date: 2026-06-22
+Дата: 2026-06-22
 
-## Question
+## Вопрос
 
-Why can the primary `avito` worker get `HTTP 403`, while the immediate `avito_duff89` fallback succeeds against the same Avito search URL?
+Почему основной обработчик `avito` может получить `HTTP 403`, а следующий за ним резервный `avito_duff89` успешно получает данные по тому же поисковому URL Avito?
 
-## Observed Facts
+## Наблюдаемые Факты
 
-Run: `20260622T040909Z`
+Запуск: `20260622T040909Z`
 
-- `kyocera_m2040dn`: primary Avito returned `HTTP 403` / `access_restricted_ip`.
-- `kyocera_m2040dn`: Duff89/parser_avito immediately fetched and saved 50 listings.
-- `dell_r740`: primary Avito returned `HTTP 403` / `access_restricted_ip`.
-- `dell_r740`: Duff89/parser_avito output existed and was recovered from XLSX.
-- `lenovo_t14`: primary Avito returned `HTTP 200` and saved a normal snapshot.
+- `kyocera_m2040dn`: основной Avito вернул `HTTP 403` / `access_restricted_ip`.
+- `kyocera_m2040dn`: Duff89/parser_avito сразу получил и сохранил 50 объявлений.
+- `dell_r740`: основной Avito вернул `HTTP 403` / `access_restricted_ip`.
+- `dell_r740`: результат Duff89/parser_avito существовал и был восстановлен из XLSX.
+- `lenovo_t14`: основной Avito вернул `HTTP 200` и сохранил обычный снимок.
 
-This means the IP was not globally blocked for all Avito traffic during the run.
+Это означает, что IP не был глобально заблокирован для всего трафика Avito во время run.
 
-Response metadata:
+Метаданные ответа:
 
-- blocked primary responses came from `server: QRATOR`;
-- blocked primary responses set only limited anti-bot/service cookies;
-- successful Avito response set fuller session-like cookies and included normal SSR markers.
+- заблокированные ответы основного обработчика пришли от `server: QRATOR`;
+- заблокированные ответы основного обработчика выставили только ограниченные служебные/антибот cookies;
+- успешный ответ Avito выставил более полный набор session-like cookies и содержал обычные SSR-признаки.
 
-## Duff89 Configuration In This Run
+## Конфигурация Duff89 В Этом Запуске
 
-Duff89 was used without:
+Duff89 использовался без:
 
-- proxy;
-- own cookies;
-- webdriver;
-- bypass API;
-- phone parsing.
+- прокси;
+- собственных cookies;
+- браузерного драйвера;
+- API обхода;
+- парсинга телефонов.
 
-So `avito_duff89` success was not caused by proxy rotation, cookie reuse, CAPTCHA bypass, or browser automation.
+Значит успех `avito_duff89` не был связан с ротацией прокси, повторным использованием cookies, обходом CAPTCHA или браузерной автоматизацией.
 
-## Most Likely Explanation
+## Наиболее Вероятное Объяснение
 
-`avito` and `avito_duff89` are two different HTTP clients hitting the same Avito domain.
+`avito` и `avito_duff89` — это два разных HTTP-клиента, которые обращаются к одному домену Avito.
 
-Avito/QRATOR appears to make a per-request risk decision based on a combination of:
+Avito/QRATOR, судя по результатам, принимает решение о риске на уровне конкретного запроса по сочетанию факторов:
 
-- IP reputation at that moment;
-- TLS/browser impersonation fingerprint;
-- user-agent/header combination;
-- URL/category/search pattern;
-- recent request sequence;
-- cookies issued or not issued on the current request.
+- репутация IP в этот момент;
+- TLS-отпечаток и имитация браузера;
+- сочетание user-agent и HTTP-заголовков;
+- URL, категория и поисковая строка;
+- недавняя последовательность запросов;
+- cookies, выданные или не выданные в текущем запросе.
 
-The primary worker and Duff89 both use `curl_cffi`, but each request chooses its own browser impersonation/session. A request can therefore be blocked while the next nearby request is accepted. The Day 5 result is best interpreted as request-level blocking, not as a stable source-level status.
+Основной обработчик и Duff89 оба используют `curl_cffi`, но каждый запрос выбирает свою имитацию браузера и свою сессию. Поэтому один запрос может быть заблокирован, а следующий соседний запрос другим клиентом может быть принят. Результат Day 5 нужно трактовать как блокировку на уровне запроса, а не как стабильный статус всего источника.
 
-## Practical Implication
+## Практический Вывод
 
-Do not record primary Avito `blocked` as the valuation result if Duff89 returns usable listings.
+Не записывать `blocked` основного Avito как итоговую оценку, если Duff89 вернул пригодные объявления.
 
-Correct semantics:
+Правильная семантика:
 
-- primary Avito `blocked` is source-health evidence;
-- Duff89 success is the final price source for that job;
-- the persisted snapshot source must be `avito_duff89`.
+- `blocked` основного Avito — это данные о состоянии источника;
+- успех Duff89 — итоговый источник цены для этой позиции;
+- сохраненный снимок должен иметь `source: avito_duff89`.
 
-## Added Diagnostic
+## Добавленная Диагностика
 
-The primary worker now writes request fingerprint metadata into `response_meta.json` for future runs:
+Основной обработчик теперь пишет метаданные отпечатка запроса в `response_meta.json` для будущих запусков:
 
 ```json
 {
@@ -76,16 +76,16 @@ The primary worker now writes request fingerprint metadata into `response_meta.j
 }
 ```
 
-This lets the next run compare blocked vs successful primary requests without repeating the run just for diagnostics.
+Это позволит в следующем запуске сравнить заблокированные и успешные запросы основного обработчика без повторного запуска только ради диагностики.
 
-## Next Check
+## Следующая Проверка
 
-On the next controlled run, compare for each job:
+В следующем контролируемом запуске сравнить по каждой позиции:
 
-- primary `response_meta.request.impersonate`;
-- primary `response_meta.request.headers.user-agent`;
-- primary HTTP status and QRATOR cookies;
-- Duff89 `good_request_count` / `bad_request_count`;
-- final source and median.
+- `response_meta.request.impersonate` основного обработчика;
+- `response_meta.request.headers.user-agent` основного обработчика;
+- HTTP-статус основного обработчика и cookies QRATOR;
+- `good_request_count` / `bad_request_count` у Duff89;
+- итоговый источник и медиану.
 
-If blocks correlate with specific `impersonate` values or UA/fingerprint mismatch, the primary worker can be made less random and closer to the known-good client profile.
+Если блокировки начнут коррелировать с конкретными значениями `impersonate` или несоответствием UA/отпечатка, основной обработчик можно будет сделать менее случайным и ближе к профилю клиента, который уже дает успешный результат.

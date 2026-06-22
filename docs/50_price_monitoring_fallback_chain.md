@@ -1,80 +1,80 @@
-# Price Monitoring Fallback Chain
+# Резервная цепочка источников цен
 
-Date: 2026-06-21
+Дата: 2026-06-21
 
-## Decision
+## Решение
 
-Use a strict manual fallback chain for each monitored item:
+Для каждой отслеживаемой позиции используем строгую ручную цепочку источников:
 
 ```text
-1. Avito primary worker
-2. Duff89/parser_avito fallback
-3. Youla GraphQL fallback
+1. Основной обработчик Avito
+2. Резервный Duff89/parser_avito
+3. Резервная Юла через GraphQL
 ```
 
-The first source that returns relevant listings becomes the source of the daily snapshot.
+Первый источник, который вернул релевантные объявления, становится источником дневного ценового снимка.
 
-## Behavior
+## Поведение
 
-For each job:
+Для каждой позиции:
 
-1. Run the current Avito worker.
-2. If Avito returns `success`, save the Avito snapshot and stop.
-3. If Avito returns `blocked`, `captcha`, `parser_error`, or `no_data`, run Duff89/parser_avito.
-4. If Duff89 returns listings, normalize them, run the same relevance filter, save the snapshot with `source: avito_duff89`, and stop.
-5. If Duff89 does not return listings, run Youla.
-6. If Youla returns listings, normalize them, run the same relevance filter, save the snapshot with `source: youla`, and stop.
-7. If all sources fail, keep the original Avito failure as the job result and preserve source-health evidence.
+1. Запустить текущий обработчик Avito.
+2. Если Avito вернул `success`, сохранить снимок Avito и остановиться.
+3. Если Avito вернул `blocked`, `captcha`, `parser_error` или `no_data`, запустить Duff89/parser_avito.
+4. Если Duff89 вернул объявления, нормализовать их, применить тот же фильтр релевантности, сохранить снимок с `source: avito_duff89` и остановиться.
+5. Если Duff89 не вернул объявления, запустить Юлу.
+6. Если Юла вернула объявления, нормализовать их, применить тот же фильтр релевантности, сохранить снимок с `source: youla` и остановиться.
+7. Если все источники не дали результата, оставить исходную ошибку Avito как результат позиции и сохранить данные о состоянии источников.
 
-## Important Rule
+## Главное Правило
 
-A blocked Avito attempt is not the final valuation result if a fallback source returns usable listings.
+Заблокированная попытка Avito не является итоговой оценкой, если резервный источник вернул пригодные объявления.
 
-It remains recorded as source-health context:
+Она остается контекстом состояния источника:
 
 - `fallback_from: avito`
 - `primary_status`
 - `primary_http_status`
-- Duff89 diagnostic report, if present
+- диагностический отчет Duff89, если он есть
 
-## Implementation Notes
+## Примечания По Реализации
 
-Changed worker behavior:
+Изменения в обработчике:
 
-- `duff89_probe.py` now writes `duff89_normalized_listings.json` when it can extract listings from Duff89 XLSX output.
-- `worker.py` can build a normal `daily_snapshot.json` from `avito_duff89` listings.
-- `worker.py` can query Youla GraphQL as the final fallback.
-- `calculate_snapshot` now records the actual source used for the snapshot.
-- `search_jobs.example.json` documents `youla_fallback`, disabled by default.
-- local ignored `search_jobs.json` has Duff89 and Youla fallback enabled for manual testing.
+- `duff89_probe.py` пишет `duff89_normalized_listings.json`, если может извлечь объявления из XLSX-выгрузки Duff89.
+- `worker.py` умеет строить обычный `daily_snapshot.json` по объявлениям `avito_duff89`.
+- `worker.py` умеет запрашивать Юлу через GraphQL как последний резервный источник.
+- `calculate_snapshot` записывает фактический источник снимка.
+- `search_jobs.example.json` описывает `youla_fallback`; по умолчанию он выключен.
+- Локальный ignored `search_jobs.json` включает Duff89 и Юлу для ручного тестирования.
 
-## Source Status Semantics
+## Семантика Статусов Источника
 
-Snapshot `source` values:
+Значения `source` у снимка:
 
-- `avito`: primary worker succeeded.
-- `avito_duff89`: primary Avito failed, Duff89 produced usable listings.
-- `youla`: Avito and Duff89 failed, Youla produced usable listings.
+- `avito`: основной обработчик успешно получил данные.
+- `avito_duff89`: основной Avito не дал результата, Duff89 вернул пригодные объявления.
+- `youla`: Avito и Duff89 не дали результата, Юла вернула пригодные объявления.
 
-Job `status` values remain:
+Значения `status` у позиции остаются:
 
-- `success`: at least one relevant listing after filtering.
-- `no_data`: listings were fetched but none survived relevance filtering.
-- `blocked` / `captcha`: primary/final source was blocked.
-- `parser_error`: source response could not be parsed or source call failed.
+- `success`: после фильтрации есть хотя бы одно релевантное объявление.
+- `no_data`: объявления были получены, но ни одно не прошло фильтр релевантности.
+- `blocked` / `captcha`: основной или итоговый источник заблокирован.
+- `parser_error`: ответ источника не удалось разобрать или вызов источника завершился ошибкой.
 
-## Constraints
+## Ограничения
 
-- Manual runs only.
-- No scheduler.
-- No retry loop after block.
-- No proxy rotation.
-- No CAPTCHA bypass.
-- Keep one Avito live run per UTC day unless explicitly overriding for a controlled test.
+- Только ручные запуски.
+- Без планировщика.
+- Без цикла повторов после блокировки.
+- Без ротации прокси.
+- Без обхода CAPTCHA.
+- Один боевой запуск Avito в UTC-день, если нет явного разрешения на контролируемое исключение.
 
-## Next Test
+## Следующий Тест
 
-Run the chain once against the three monitored jobs:
+Один раз запустить цепочку по трем отслеживаемым позициям:
 
 ```text
 kyocera_m2040dn
@@ -82,7 +82,7 @@ lenovo_t14
 dell_r740
 ```
 
-Expected useful outcome:
+Ожидаемый полезный результат:
 
-- At least one job should produce `source: avito`, `source: avito_duff89`, or `source: youla`.
-- If fallback source is `youla`, review rejected/unknown reasons carefully because Youla search is broader.
+- Хотя бы одна позиция должна получить `source: avito`, `source: avito_duff89` или `source: youla`.
+- Если итоговый источник `youla`, нужно отдельно проверить причины отклонения и неопределенности, потому что поиск Юлы шире.

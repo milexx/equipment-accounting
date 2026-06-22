@@ -1,4 +1,4 @@
-# Continuation
+# Продолжение Работы
 
 ## Что Уже Сделано
 
@@ -82,47 +82,47 @@
   - доступ только для центра;
   - показывает сохранённые исторические snapshots по каждому monitored item;
   - строит SVG-графики min/median/max без внешних JS-зависимостей;
-  - показывает blocked/no data точки и таблицу всех сохранённых запусков;
-  - live Avito и scheduler не запускались и не подключались.
+  - показывает точки `blocked`/`no_data` и таблицу всех сохранённых запусков;
+  - боевой Avito и планировщик не запускались и не подключались.
 - Day 4 endurance Avito выполнен 2026-06-21:
-  - run `20260621T131205Z`;
-  - все 3 job получили `HTTP 403` / `access_restricted_ip`;
-  - run импортирован в БД как 3 blocked snapshots;
+  - запуск `20260621T131205Z`;
+  - все 3 позиции получили `HTTP 403` / `access_restricted_ip`;
+  - запуск импортирован в БД как 3 снимка `blocked`;
   - решение обновлено до `continue_endurance_with_automation_hold`;
-  - scheduler и unattended runs остаются заблокированы.
-- Выполнен source discovery по Юле как альтернативному ручному источнику:
-  - Youla HTML/search endpoints вернули `HTTP 200` с текущего сервера;
-  - найден GraphQL catalog endpoint `https://api-gw.youla.ru/graphql`;
+  - планировщик и автоматические запуски остаются заблокированы.
+- Выполнено исследование Юлы как альтернативного ручного источника:
+  - HTML/search-конечные точки Юлы вернули `HTTP 200` с текущего сервера;
+  - найдена конечная точка каталога GraphQL `https://api-gw.youla.ru/graphql`;
   - один контрольный запрос `catalogProductsBoard` по `Lenovo ThinkPad T14` вернул `HTTP 200` и карточки с ценами;
   - добавлен ручной POC `research/youla-source-poc/fetch_youla_catalog.py`;
   - POC-скрипт проверен: `HTTP 200`, `status: ok`, `count: 30`;
-  - следующий статус: `youla_manual_source_poc`, без scheduler и без фоновых повторов.
-- Реализована fallback-chain оценщика для ручных прогонов:
-  - сначала штатный Avito worker;
+  - следующий статус: `youla_manual_source_poc`, без планировщика и без фоновых повторов.
+- Реализована резервная цепочка оценщика для ручных прогонов:
+  - сначала штатный обработчик Avito;
   - если он не дал `success`, пробуется Duff89/parser_avito;
-  - если Duff89 не дал usable listings, пробуется Youla GraphQL;
-  - итоговый `daily_snapshot.json` получает source первого успешного источника: `avito`, `avito_duff89` или `youla`;
-  - blocked Avito сохраняется как контекст `primary_status`, но не становится итоговой ценой, если fallback дал данные.
-- Импорт POC run в БД теперь сохраняет фактический source snapshot/listing, а не принудительно `avito`.
-- UI `/pricing` показывает source ценовой точки в карточках и журнале.
-- Подготовлен runbook для следующего ручного fallback-прогона: `docs/51_price_monitoring_fallback_runbook.md`.
-- Выполнен первый ручной fallback-chain run 2026-06-22:
-  - run `20260622T040909Z`;
+  - если Duff89 не дал пригодных объявлений, пробуется Юла через GraphQL;
+  - итоговый `daily_snapshot.json` получает источник первого успешного источника: `avito`, `avito_duff89` или `youla`;
+  - заблокированный Avito сохраняется как контекст `primary_status`, но не становится итоговой ценой, если резервный источник дал данные.
+- Импорт POC-запуска в БД теперь сохраняет фактический источник снимка/объявления, а не принудительно `avito`.
+- Интерфейс `/pricing` показывает источник ценовой точки в карточках и журнале.
+- Подготовлен регламент следующего ручного запуска резервной цепочки: `docs/51_price_monitoring_fallback_runbook.md`.
+- Выполнен первый ручной запуск резервной цепочки 2026-06-22:
+  - запуск `20260622T040909Z`;
   - итоговый статус `success`;
-  - `kyocera_m2040dn`: `source=avito_duff89`, relevant 37, median 24999;
-  - `lenovo_t14`: `source=avito`, relevant 25, median 28000;
-  - `dell_r740`: `source=avito_duff89`, relevant 41, median 200000;
-  - run импортирован в БД как 103 observations и 3 snapshots;
-  - `/pricing` показывает исторические точки 2026-06-22 с фактическим source.
+  - `kyocera_m2040dn`: `source=avito_duff89`, релевантных 37, медиана 24999;
+  - `lenovo_t14`: `source=avito`, релевантных 25, медиана 28000;
+  - `dell_r740`: `source=avito_duff89`, релевантных 41, медиана 200000;
+  - запуск импортирован в БД как 103 наблюдения и 3 снимка;
+  - `/pricing` показывает исторические точки 2026-06-22 с фактическим источником.
 - Исправлен Duff89 probe:
   - `job_dir` и `repo` резолвятся до `os.chdir`;
-  - Excel datetime-like значения сериализуются в JSON через `isoformat`;
-  - добавлены regression tests.
+  - похожие на дату/время значения Excel сериализуются в JSON через `isoformat`;
+  - добавлены регрессионные тесты.
 - Упрощен `scripts/import_price_poc_run.py`: убрана лишняя самоперезапускающаяся `python -c` обертка.
-- Для следующих запусков POC worker добавлен diagnostic hook:
-  - при `blocked`/`captcha` запускает контрольный `Duff89/parser_avito` probe;
-  - пишет `block_diagnostic.json` и `duff89_probe_report.json` рядом с job report;
-  - результат показывается в offline/endurance markdown reports;
+- Для следующих запусков POC-обработчика добавлен диагностический hook:
+  - при `blocked`/`captcha` запускает контрольный Duff89/parser_avito probe;
+  - пишет `block_diagnostic.json` и `duff89_probe_report.json` рядом с отчетом позиции;
+  - результат показывается в отчетах markdown без сетевого запроса и endurance-отчетах;
   - hook включён в локальном ignored `research/avito-monitor-worker-poc/config/search_jobs.json`, но выключен в git example config.
 - В форме создания `/equipment/new` динамические поля теперь показываются только для выбранного типа оборудования; поля скрытых типов отключаются и не отправляются.
 - В карточке `/equipment/{id}` реализовано редактирование фото:

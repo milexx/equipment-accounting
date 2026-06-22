@@ -1,50 +1,50 @@
-# Price Monitoring Fallback Run 2026-06-22
+# Запуск Резервной Цепочки Оценщика 2026-06-22
 
-Date: 2026-06-22
-Run ID: `20260622T040909Z`
+Дата: 2026-06-22
+Идентификатор запуска: `20260622T040909Z`
 
-## Scope
+## Область Применения
 
-Controlled manual run of the pricing fallback chain:
+Контролируемый ручной запуск резервной цепочки оценщика:
 
 ```text
-Avito -> Duff89/parser_avito -> Youla
+Avito -> Duff89/parser_avito -> Юла
 ```
 
-No scheduler was enabled. The run was executed once for the UTC day.
+Планировщик не включался. Запуск был выполнен один раз за UTC-день.
 
-## Result
+## Результат
 
-Final run status: `success`
+Итоговый статус запуска: `success`
 
-| Job | Final source | Status | Relevant | Unknown | Rejected | Median |
+| Позиция | Итоговый источник | Статус | Релевантные | Неопределенные | Отклоненные | Медиана |
 | --- | --- | --- | ---: | ---: | ---: | ---: |
 | `kyocera_m2040dn` | `avito_duff89` | `success` | 37 | 5 | 8 | 24 999 |
 | `lenovo_t14` | `avito` | `success` | 25 | 0 | 25 | 28 000 |
 | `dell_r740` | `avito_duff89` | `success` | 41 | 0 | 9 | 200 000 |
 
-## Source Behavior
+## Поведение Источников
 
-- `lenovo_t14`: primary Avito worker succeeded.
-- `kyocera_m2040dn`: primary Avito returned `HTTP 403` / `access_restricted_ip`; Duff89 returned usable listings.
-- `dell_r740`: fallback data was recovered from Duff89 XLSX output and imported as `avito_duff89`.
-- Youla was not needed for the final successful snapshots.
+- `lenovo_t14`: основной обработчик Avito сработал.
+- `kyocera_m2040dn`: основной Avito вернул `HTTP 403` / `access_restricted_ip`; Duff89 вернул пригодные объявления.
+- `dell_r740`: данные резервного источника восстановлены из XLSX-выгрузки Duff89 и импортированы как `avito_duff89`.
+- Юла не понадобилась для итоговых успешных снимков.
 
-## Technical Fix
+## Техническое Исправление
 
-During the run, Duff89 reported saved XLSX files but the probe initially counted zero listings. Root cause: `duff89_probe.py` accepted a relative `job_dir`, then changed working directory to the Duff89 repository, so output was checked under the wrong directory.
+Во время запуска Duff89 сообщал о сохраненных XLSX-файлах, но probe сначала считал ноль объявлений. Причина: `duff89_probe.py` принимал относительный `job_dir`, затем менял рабочий каталог на репозиторий Duff89, поэтому выходной файл проверялся не в том каталоге.
 
-Fix:
+Исправление:
 
-- resolve `repo` and `job_dir` before `os.chdir`;
-- serialize Excel datetime-like values with `isoformat`;
-- add regression tests for relative `job_dir` handling.
+- резолвить `repo` и `job_dir` до `os.chdir`;
+- сериализовать Excel datetime-like значения через `isoformat`;
+- добавить regression tests для обработки относительного `job_dir`.
 
-The run was repaired offline from the already saved Duff89 XLSX files. No additional live Avito request was made for the repair.
+Запуск восстановлен без сетевого запроса из уже сохраненных XLSX-файлов Duff89. Для восстановления не выполнялся дополнительный боевой запрос к Avito.
 
-## Database Import
+## Импорт В Базу
 
-The run was imported into backend pricing tables:
+Запуск импортирован в таблицы оценщика:
 
 ```text
 run_id=20260622T040909Z
@@ -54,25 +54,25 @@ snapshots_saved=3
 parser_errors_created=0
 ```
 
-The `/pricing` page now shows the 2026-06-22 points in historical charts and journal rows with actual sources:
+Страница `/pricing` показывает точки 2026-06-22 на исторических графиках и в журнале с фактическими источниками:
 
-- `avito` for Lenovo;
-- `avito_duff89` for Kyocera and Dell.
+- `avito` для Lenovo;
+- `avito_duff89` для Kyocera и Dell.
 
-## Decision
+## Решение
 
-Decision: `keep_fallback_chain_for_mvp_manual`
+Решение: `keep_fallback_chain_for_mvp_manual`
 
-Rationale:
+Обоснование:
 
-- The fallback chain produced usable daily snapshots for all three monitored items.
-- Blocked Avito attempts did not pollute valuation history as final blocked price points.
-- Actual source attribution is visible in the UI and persisted in the database.
+- Резервная цепочка дала пригодные дневные снимки по всем трем отслеживаемым позициям.
+- Заблокированные попытки Avito не загрязнили историю оценки как итоговые blocked-точки.
+- Фактический источник виден в интерфейсе и сохранен в базе данных.
 
-Constraints remain:
+Ограничения остаются:
 
-- manual runs only;
-- no scheduler;
-- no retry loop after block;
-- no proxy, cookies, or CAPTCHA bypass;
-- one controlled live run per UTC day unless explicitly overridden.
+- только ручные запуски;
+- без планировщика;
+- без цикла повторов после блокировки;
+- без прокси, cookies и обхода CAPTCHA;
+- один контролируемый боевой запуск в UTC-день, если нет явного разрешения на исключение.

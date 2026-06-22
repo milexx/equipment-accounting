@@ -1,142 +1,142 @@
-# Fallback Chain Runbook
+# Регламент Запуска Резервной Цепочки
 
-Date: 2026-06-21
+Дата: 2026-06-21
 
-## Scope
+## Область Применения
 
-Manual run for the pricing fallback chain:
+Ручной запуск резервной цепочки оценщика:
 
 ```text
-Avito -> Duff89/parser_avito -> Youla
+Avito -> Duff89/parser_avito -> Юла
 ```
 
-This runbook is for the next controlled test window. It does not authorize scheduler or repeated background runs.
+Этот регламент предназначен для следующего контролируемого тестового окна. Он не разрешает планировщик или повторные фоновые запуски.
 
-## Preflight
+## Предварительная Проверка
 
-Run from:
+Запускать из каталога:
 
 ```text
 /opt/workspace/projects/equipment-accounting/research/avito-monitor-worker-poc
 ```
 
-Check config:
+Проверить конфигурацию:
 
 ```bash
 .venv/bin/python src/worker.py --dry-run-config --config config/search_jobs.json
 ```
 
-Expected:
+Ожидаемый результат:
 
 ```text
 block_diagnostic_enabled: true
 youla_fallback_enabled: true
 ```
 
-Check same-day guard:
+Проверить защиту от повторного запуска в тот же день:
 
 ```bash
 .venv/bin/python src/worker.py --preflight --config config/search_jobs.json --runs-dir runs
 ```
 
-If status is `blocked_by_same_day_guard`, do not run unless this is an explicitly approved controlled override.
+Если статус `blocked_by_same_day_guard`, не запускать обработчик без явно утвержденного контролируемого исключения.
 
-## Manual Run
+## Ручной Запуск
 
 ```bash
 .venv/bin/python src/worker.py --config config/search_jobs.json --runs-dir runs
 ```
 
-Do not repeat the run on the same UTC day after an Avito block.
+После блокировки Avito не повторять запуск в тот же UTC-день.
 
-## After Run
+## После Запуска
 
-Analyze latest run:
+Проанализировать последний run:
 
 ```bash
 .venv/bin/python src/worker.py --analyze-run runs/<RUN_ID>
 ```
 
-The analysis output must show `source` for every job.
+Вывод анализа должен показывать `source` для каждой позиции.
 
-Generate markdown report:
+Сформировать markdown-отчет:
 
 ```bash
 .venv/bin/python src/worker.py --analyze-run runs/<RUN_ID> --write-markdown-report --output runs/<RUN_ID>/offline_report.md
 ```
 
-Check per job:
+Проверить по каждой позиции:
 
 - `job_report.json`
 - `daily_snapshot.json`
 - `relevant_listings.json`
 - `unknown_listings.json`
 - `rejected_listings.json`
-- `block_diagnostic.json`, if Avito was blocked
-- `duff89_normalized_listings.json`, if Duff89 ran
-- `youla_fallback_report.json`, if Youla ran
+- `block_diagnostic.json`, если Avito был заблокирован
+- `duff89_normalized_listings.json`, если запускался Duff89
+- `youla_fallback_report.json`, если запускалась Юла
 
-## Acceptance Criteria
+## Критерии Приемки
 
-For each monitored item, record:
+По каждой отслеживаемой позиции зафиксировать:
 
-- final `status`;
-- final `source`;
-- `primary_status`, if fallback was used;
-- `primary_http_status`, if fallback was used;
+- итоговый `status`;
+- итоговый `source`;
+- `primary_status`, если использовался резервный источник;
+- `primary_http_status`, если использовался резервный источник;
 - `relevant_count`;
 - `unknown_count`;
 - `rejected_count`;
-- median price, if available.
+- медианную цену, если она есть.
 
-Useful outcomes:
+Полезные исходы:
 
-- `source: avito` means primary worker succeeded.
-- `source: avito_duff89` means Avito failed but Duff89 returned usable listings.
-- `source: youla` means Avito and Duff89 failed but Youla returned usable listings.
+- `source: avito` означает, что основной обработчик сработал.
+- `source: avito_duff89` означает, что Avito не дал результата, но Duff89 вернул пригодные объявления.
+- `source: youla` означает, что Avito и Duff89 не дали результата, но Юла вернула пригодные объявления.
 
-Problem outcomes:
+Проблемные исходы:
 
-- `blocked` / `captcha`: source unavailable.
-- `parser_error`: source response could not be parsed.
-- `no_data`: source returned data, but no relevant listings survived filters.
+- `blocked` / `captcha`: источник недоступен.
+- `parser_error`: ответ источника не удалось разобрать.
+- `no_data`: источник вернул данные, но ни одно объявление не прошло фильтр релевантности.
 
-## Import To Database
+## Импорт В Базу
 
-Import only after reviewing the run directory:
+Импортировать только после ручной проверки каталога run:
 
 ```bash
 cd /opt/workspace/projects/equipment-accounting
 .venv/bin/python scripts/import_price_poc_run.py research/avito-monitor-worker-poc/runs/<RUN_ID>
 ```
 
-The importer now preserves actual snapshot/listing source:
+Импортер сохраняет фактический источник снимка и объявлений:
 
 - `avito`
 - `avito_duff89`
 - `youla`
 
-Blocked Avito is not imported as a price point if fallback produced a successful snapshot. It remains preserved in run/job raw reports.
+Заблокированный Avito не импортируется как ценовая точка, если резервный источник дал успешный снимок. Он остается в исходных отчетах run/job как контекст состояния источника.
 
-## UI Check
+## Проверка Интерфейса
 
-Open:
+Открыть:
 
 ```text
 http://185.168.208.240:8010/pricing
 ```
 
-Verify:
+Проверить:
 
-- chart point list shows source code;
-- journal has a separate `Источник` column;
-- fallback price points are not mislabeled as `avito`.
+- список точек графика показывает код источника;
+- в журнале есть отдельная колонка `Источник`;
+- резервные ценовые точки не подписаны ошибочно как `avito`.
 
-## Decision After Run
+## Решение После Запуска
 
-Choose one:
+Выбрать одно:
 
-- `keep_fallback_chain_for_mvp`: chain gives useful relevant snapshots.
-- `adjust_filters_then_retry_next_day`: source works, but relevance is noisy.
-- `hold_source_unstable`: all sources blocked or unusable.
-- `youla_only_manual_experiment`: Avito/Duff89 remain blocked, Youla is the only useful fallback.
+- `keep_fallback_chain_for_mvp`: цепочка дает полезные релевантные снимки.
+- `adjust_filters_then_retry_next_day`: источник работает, но релевантность шумная.
+- `hold_source_unstable`: все источники заблокированы или непригодны.
+- `youla_only_manual_experiment`: Avito/Duff89 остаются заблокированными, Юла является единственным полезным резервным источником.

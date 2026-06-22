@@ -1,41 +1,41 @@
-# Youla Source Discovery
+# Исследование Юлы Как Источника Цен
 
-Date: 2026-06-21
+Дата: 2026-06-21
 
-## Goal
+## Цель
 
-Check whether Youla can be used as an additional experimental market source for the pricing module after Avito started returning `HTTP 403` for all monitored jobs on Day 4.
+Проверить, можно ли использовать Юлу как дополнительный экспериментальный рыночный источник для модуля оценщика после того, как Avito начал возвращать `HTTP 403` по всем отслеживаемым позициям на Day 4.
 
-## Summary
+## Краткий Вывод
 
-Youla is technically reachable from the current server and can return public listing data through its GraphQL catalog endpoint.
+Юла технически доступна с текущего сервера и может возвращать публичные данные объявлений через свой каталог GraphQL.
 
-This does not make Youla a production-stable source yet. It is a better candidate for a second manual experimental source than repeating blocked Avito runs, because the first controlled request returned `HTTP 200` and listing payloads with prices.
+Это еще не делает Юлу стабильным производственным источником. Но она лучше подходит как второй ручной экспериментальный источник, чем повтор заблокированных запусков Avito, потому что первый контролируемый запрос вернул `HTTP 200` и данные объявлений с ценами.
 
-## What Was Checked
+## Что Проверено
 
-Direct HTTP checks:
+Прямые HTTP-проверки:
 
-- `https://youla.ru/` returned `HTTP 200`.
-- `https://www.youla.ru/` redirected to `https://youla.ru/`.
-- `https://m.youla.ru/` redirected to `https://youla.io/`.
-- `https://youla.ru/moskva?q=Lenovo%20ThinkPad%20T14` returned `HTTP 200`.
-- `https://youla.ru/all?q=Lenovo%20ThinkPad%20T14` returned `HTTP 200`.
+- `https://youla.ru/` вернул `HTTP 200`.
+- `https://www.youla.ru/` перенаправил на `https://youla.ru/`.
+- `https://m.youla.ru/` перенаправил на `https://youla.io/`.
+- `https://youla.ru/moskva?q=Lenovo%20ThinkPad%20T14` вернул `HTTP 200`.
+- `https://youla.ru/all?q=Lenovo%20ThinkPad%20T14` вернул `HTTP 200`.
 
-The HTML contains `window.__YOULA_STATE__` with:
+HTML содержит `window.__YOULA_STATE__` со следующими данными:
 
 - `apiUri: https://api.youla.ru`
 - `apiFederationUri: https://api-gw.youla.ru/graphql`
 - `apiProxyUri: /web-api`
 - `apiClientId: web/3`
-- public anonymous `uid`
-- Moscow geolocation data
+- публичный анонимный `uid`
+- данные геолокации Москвы
 
-The SSR state did not contain product listings. Listing data is loaded by the frontend through Apollo GraphQL.
+SSR-состояние не содержит сами объявления. Данные объявлений загружаются фронтендом через Apollo GraphQL.
 
-## GraphQL Endpoint
+## Конечная Точка GraphQL
 
-Relevant frontend query found in Youla JS bundles:
+В JS-бандлах Юлы найден релевантный фронтенд-запрос:
 
 ```graphql
 query catalogProductsBoard(
@@ -141,71 +141,71 @@ query catalogProductsBoard(
 }
 ```
 
-Control request:
+Контрольный запрос:
 
-- endpoint: `https://api-gw.youla.ru/graphql`
-- operation: `catalogProductsBoard`
-- search: `Lenovo ThinkPad T14`
-- location: Moscow coordinates from SSR state
-- result: `HTTP 200`
-- payload: product items with `id`, `name`, `price.origPrice.price`, `price.realPrice.price`, `price.realPriceText`, `url`, `location.cityName`, `distanceText`
-- pageInfo returned cursor and `hasNextPage: true`
+- конечная точка: `https://api-gw.youla.ru/graphql`
+- операция: `catalogProductsBoard`
+- поиск: `Lenovo ThinkPad T14`
+- геолокация: координаты Москвы из SSR-состояния
+- результат: `HTTP 200`
+- данные: карточки товаров с `id`, `name`, `price.origPrice.price`, `price.realPrice.price`, `price.realPriceText`, `url`, `location.cityName`, `distanceText`
+- `pageInfo` вернул cursor и `hasNextPage: true`
 
-Manual POC script verification:
+Проверка ручного POC-скрипта:
 
-- command: `python3 research/youla-source-poc/fetch_youla_catalog.py 'Lenovo ThinkPad T14'`
-- result: `HTTP 200`
-- normalized status: `ok`
-- normalized count: `30`
-- first normalized price example: `4500000 -> 45000.0`
+- команда: `python3 research/youla-source-poc/fetch_youla_catalog.py 'Lenovo ThinkPad T14'`
+- результат: `HTTP 200`
+- нормализованный статус: `ok`
+- нормализованное количество: `30`
+- первый пример нормализации цены: `4500000 -> 45000.0`
 
-## Important Data Shape
+## Важная Структура Данных
 
-Observed price units are integer kopecks, not rubles:
+Наблюдаемая единица цены — целые копейки, не рубли:
 
-- `4500000` corresponds to `45 000 ₽`.
-- `13500000` corresponds to `135 000 ₽`.
-- `799000` corresponds to `7 990 ₽`.
+- `4500000` соответствует `45 000 ₽`.
+- `13500000` соответствует `135 000 ₽`.
+- `799000` соответствует `7 990 ₽`.
 
-For normalization:
+Для нормализации:
 
-- store raw source price as returned;
-- store normalized rubles as `price / 100`;
-- keep `realPriceText` for audit/debug display.
+- хранить исходную цену источника как она пришла;
+- хранить нормализованные рубли как `price / 100`;
+- сохранять `realPriceText` для аудита и отладки.
 
-## Source Quality Notes
+## Качество Источника
 
-Pros:
+Плюсы:
 
-- public endpoint returned `HTTP 200` from the same server where Avito returned `HTTP 403`;
-- no login was needed for the tested catalog query;
-- payload already has structured prices, title, URL, city and distance;
-- pagination exists through `pageInfo.cursor`.
+- публичная конечная точка вернула `HTTP 200` с того же сервера, где Avito вернул `HTTP 403`;
+- для проверенного запроса каталога не понадобился вход;
+- данные уже содержат структурированные цены, название, URL, город и расстояние;
+- есть пагинация через `pageInfo.cursor`.
 
-Risks:
+Риски:
 
-- this is an internal web GraphQL API, not a stable public partner API;
-- request headers and query schema can change without notice;
-- current first request was only a discovery check, not endurance testing;
-- search relevance is broad: a `Lenovo ThinkPad T14` query returned some unrelated Lenovo models, so existing relevance filtering is still required;
-- Youla coverage for some enterprise equipment may be weaker than Avito.
+- это внутренний веб-API GraphQL, а не стабильный публичный партнерский API;
+- заголовки запроса и схема могут измениться без предупреждения;
+- текущий первый запрос был только проверкой доступности, а не многодневным тестом устойчивости;
+- релевантность поиска широкая: запрос `Lenovo ThinkPad T14` вернул часть нерелевантных моделей Lenovo, поэтому существующий фильтр релевантности все еще нужен;
+- покрытие Юлы по части корпоративного оборудования может быть слабее, чем у Avito.
 
-## Decision
+## Решение
 
-Recommended next state: `youla_manual_source_poc`.
+Рекомендуемое следующее состояние: `youla_manual_source_poc`.
 
-Use Youla as a manual experimental source behind the same source-status boundary as Avito:
+Использовать Юлу как ручной экспериментальный источник за той же границей состояния источника, что и Avito:
 
-- no scheduler;
-- no background repeated crawling;
-- one controlled run per test window;
-- store every run as a snapshot with source status;
-- do not treat a successful Youla response as proof of production reliability.
+- без планировщика;
+- без повторного фонового обхода;
+- один контролируемый запуск на тестовое окно;
+- сохранять каждый запуск как снимок со статусом источника;
+- не считать успешный ответ Юлы доказательством производственной надежности.
 
-## Next Steps
+## Следующие Шаги
 
-1. Add a small manual Youla POC script that runs one query and emits normalized JSON.
-2. Run it against the current monitored items once, with conservative pacing.
-3. Compare Youla relevance and median prices with the last successful Avito snapshots.
-4. If useful, add `source = youla` snapshots to the pricing history model without changing the UI contract.
-5. Keep Avito as `manual_experimental` / `blocked_recently`; do not repeat blocked Avito same-day.
+1. Добавить небольшой ручной POC-скрипт Юлы, который выполняет один запрос и выдает нормализованный JSON.
+2. Один раз запустить его по текущим отслеживаемым позициям с консервативными паузами.
+3. Сравнить релевантность Юлы и медианные цены с последними успешными снимками Avito.
+4. Если источник полезен, добавить снимки `source = youla` в модель ценовой истории без изменения контракта интерфейса.
+5. Оставить Avito в состоянии `manual_experimental` / `blocked_recently`; не повторять заблокированный Avito в тот же день.

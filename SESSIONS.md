@@ -1,25 +1,25 @@
-# Sessions
+# Сессии
 
 ## 2026-06-22
 
-Контекст: ручная проверка fallback-chain оценщика после настройки `Avito -> Duff89/parser_avito -> Youla`, ветка `dev`.
+Контекст: ручная проверка резервной цепочки оценщика после настройки `Avito -> Duff89/parser_avito -> Youla`, ветка `dev`.
 
 Что сделано:
 
-- Выполнен один controlled manual run: `20260622T040909Z`.
-- Итоговый статус run: `success`, 3/3 job получили успешные snapshots.
+- Выполнен один контролируемый ручной запуск: `20260622T040909Z`.
+- Итоговый статус запуска: `success`, 3/3 позиции получили успешные снимки.
 - Результаты:
-  - `kyocera_m2040dn`: `source=avito_duff89`, relevant 37, median 24999;
-  - `lenovo_t14`: `source=avito`, relevant 25, median 28000;
-  - `dell_r740`: `source=avito_duff89`, relevant 41, median 200000.
-- Найден и исправлен дефект Duff89 probe: относительный `job_dir` ломался после `os.chdir` в репозиторий Duff89, из-за чего XLSX был создан, но listings считались как 0.
-- Duff89 probe теперь резолвит `repo` и `job_dir` до смены директории и сериализует Excel datetime-like значения в JSON.
-- Run восстановлен offline из уже сохраненных Duff89 XLSX без нового Avito-запроса.
-- Run импортирован в БД: 103 observations, 3 snapshots, 0 parser errors.
+  - `kyocera_m2040dn`: `source=avito_duff89`, релевантных 37, медиана 24999;
+  - `lenovo_t14`: `source=avito`, релевантных 25, медиана 28000;
+  - `dell_r740`: `source=avito_duff89`, релевантных 41, медиана 200000.
+- Найден и исправлен дефект Duff89 probe: относительный `job_dir` ломался после `os.chdir` в репозиторий Duff89, из-за чего XLSX был создан, но объявления считались как 0.
+- Duff89 probe теперь резолвит `repo` и `job_dir` до смены директории и сериализует похожие на дату/время значения Excel в JSON.
+- Запуск восстановлен из уже сохраненных Duff89 XLSX без нового Avito-запроса.
+- Запуск импортирован в БД: 103 наблюдения, 3 снимка, 0 ошибок парсера.
 - `/pricing` проверен: графики и журнал показывают точки 2026-06-22 с фактическими источниками `avito` / `avito_duff89`.
 - Упрощен `scripts/import_price_poc_run.py`: убрана лишняя самоперезапускающаяся `python -c` обертка.
-- Разобрана причина различия `avito` blocked vs `avito_duff89` success: это не другой источник и не bypass, а разные HTTP-клиенты/запросные fingerprints к одному Avito через QRATOR.
-- В primary worker добавлена запись request fingerprint metadata (`impersonate`, `user-agent`) в `response_meta.json` для следующих controlled runs.
+- Разобрана причина различия `avito` blocked и `avito_duff89` success: это не другой источник и не обход, а разные HTTP-клиенты и разные отпечатки запросов к одному Avito через QRATOR.
+- В основной обработчик добавлена запись метаданных отпечатка запроса (`impersonate`, `user-agent`) в `response_meta.json` для следующих контролируемых запусков.
 
 Ключевые файлы:
 
@@ -33,37 +33,37 @@
 Решения и ограничения:
 
 - Текущее решение: `keep_fallback_chain_for_mvp_manual`.
-- Fallback-chain полезна для MVP как ручной источник ценовой истории.
-- Scheduler, retry loop после block, proxy/cookies/CAPTCHA bypass остаются запрещены.
-- Не повторять live run в тот же UTC-день без явного controlled override.
+- Резервная цепочка полезна для MVP как ручной источник ценовой истории.
+- Планировщик, цикл повторов после block, proxy/cookies/обход CAPTCHA остаются запрещены.
+- Не повторять боевой запуск в тот же UTC-день без явного контролируемого исключения.
 
 Проверки:
 
 - `research/avito-monitor-worker-poc/.venv/bin/python -m unittest discover -s research/avito-monitor-worker-poc/tests`: 29 tests OK.
 - `.venv/bin/python -m compileall scripts/import_price_poc_run.py`: OK.
 - `.venv/bin/python scripts/import_price_poc_run.py research/avito-monitor-worker-poc/runs/20260622T040909Z`: импорт OK вне sandbox.
-- `/pricing` через локальный HTTP показывает новые rows и graph points.
+- `/pricing` через локальный HTTP показывает новые строки и точки графиков.
 
 ## 2026-06-21
 
-Контекст: продолжение направления "Оценщик"/market source research после Day 4 Avito, ветка `dev`.
+Контекст: продолжение направления "Оценщик"/исследование рыночных источников после Day 4 Avito, ветка `dev`.
 
 Что сделано:
 
 - Проверена Юла как возможный второй экспериментальный источник цен.
-- HTML `https://youla.ru/` и search URL вернули `HTTP 200` с текущего сервера, без Avito-подобного `HTTP 403`.
-- Из `window.__YOULA_STATE__` получены публичные endpoint-параметры: `apiFederationUri`, `apiClientId`, anonymous `uid`, geolocation.
+- HTML `https://youla.ru/` и поисковый URL вернули `HTTP 200` с текущего сервера, без Avito-подобного `HTTP 403`.
+- Из `window.__YOULA_STATE__` получены публичные параметры конечных точек: `apiFederationUri`, `apiClientId`, анонимный `uid`, геолокация.
 - В JS-бандлах найден GraphQL-запрос `catalogProductsBoard`.
 - Выполнен один контрольный POST на `https://api-gw.youla.ru/graphql` по запросу `Lenovo ThinkPad T14`; результат `HTTP 200`, получены карточки с ценами, URL, городом и cursor.
-- Добавлен отдельный ручной POC для Юлы без scheduler и без интеграции в production pricing flow.
+- Добавлен отдельный ручной POC для Юлы без планировщика и без интеграции в производственный поток оценщика.
 - POC-скрипт проверен: `HTTP 200`, `status: ok`, `count: 30`, цены нормализуются из копеек в рубли.
-- Реализована fallback-chain для ручного worker-прогона: `avito -> avito_duff89 -> youla`.
-- Duff89 probe теперь сохраняет XLSX, нормализует объявления в `duff89_normalized_listings.json` и может стать источником snapshot, а не только диагностикой.
-- Worker теперь строит итоговый `daily_snapshot.json` по первому успешному источнику и сохраняет `source: avito`, `source: avito_duff89` или `source: youla`.
-- Локальный ignored `research/avito-monitor-worker-poc/config/search_jobs.json` настроен с включёнными Duff89 и Youla fallback для следующего ручного теста.
-- Импорт `scripts/import_price_poc_run.py` через `PricingService` теперь сохраняет фактический source snapshot/listing.
+- Реализована резервная цепочка для ручного прогона обработчика: `avito -> avito_duff89 -> youla`.
+- Duff89 probe теперь сохраняет XLSX, нормализует объявления в `duff89_normalized_listings.json` и может стать источником снимка, а не только диагностикой.
+- Обработчик теперь строит итоговый `daily_snapshot.json` по первому успешному источнику и сохраняет `source: avito`, `source: avito_duff89` или `source: youla`.
+- Локальный ignored `research/avito-monitor-worker-poc/config/search_jobs.json` настроен с включёнными Duff89 и резервной Юлой для следующего ручного теста.
+- Импорт `scripts/import_price_poc_run.py` через `PricingService` теперь сохраняет фактический источник снимка/объявления.
 - `/pricing` показывает источник точки в карточке графика и отдельной колонкой в журнале.
-- Подготовлен runbook на следующий ручной fallback-прогон.
+- Подготовлен регламент следующего ручного прогона резервной цепочки.
 
 Ключевые файлы:
 
@@ -81,16 +81,16 @@
 Решения и ограничения:
 
 - Рекомендован следующий статус: `youla_manual_source_poc`.
-- Юлу можно проверять только как ручной экспериментальный источник, с сохранением каждого запуска как snapshot.
-- Не подключать scheduler и не делать фоновые повторные запросы.
-- Avito после Day 4 остаётся `manual_experimental` / `blocked_recently`; не повторять blocked Avito same-day.
-- Fallback-chain не отменяет ограничение: manual only, no scheduler, no retry loop.
+- Юлу можно проверять только как ручной экспериментальный источник, с сохранением каждого запуска как снимка.
+- Не подключать планировщик и не делать фоновые повторные запросы.
+- Avito после Day 4 остаётся `manual_experimental` / `blocked_recently`; не повторять заблокированный Avito в тот же день.
+- Резервная цепочка не отменяет ограничение: только ручной режим, без планировщика и без цикла повторов.
 
 Что осталось:
 
-- Один раз прогнать всю fallback-chain по текущим monitored items с консервативным pacing.
-- Сравнить релевантность и медианы fallback source с последними успешными Avito snapshots.
-- Если полезно, добавить `source=youla` в historical snapshots без изменения контракта `/pricing`.
+- Один раз прогнать всю резервную цепочку по текущим отслеживаемым позициям с консервативными паузами.
+- Сравнить релевантность и медианы резервного источника с последними успешными снимками Avito.
+- Если полезно, добавить `source=youla` в исторические снимки без изменения контракта `/pricing`.
 
 ## 2026-06-18
 
