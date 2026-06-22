@@ -119,6 +119,8 @@
   - похожие на дату/время значения Excel сериализуются в JSON через `isoformat`;
   - добавлены регрессионные тесты.
 - Упрощен `scripts/import_price_poc_run.py`: убрана лишняя самоперезапускающаяся `python -c` обертка.
+- Подготовлен документ для демо-встречи: `docs/54_demo_meeting_preparation.md`.
+- Проверены ключевые демо-страницы через HTTP: `/login`, `/region` с `region24`, `/equipment` с `center`, `/admin` с `admin`, `/pricing` с `center`.
 - Для следующих запусков POC-обработчика добавлен диагностический hook:
   - при `blocked`/`captcha` запускает контрольный Duff89/parser_avito probe;
   - пишет `block_diagnostic.json` и `duff89_probe_report.json` рядом с отчетом позиции;

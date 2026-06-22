@@ -6,6 +6,8 @@
 
 Что сделано:
 
+- Подготовлен материал для демо-встречи с руководством и вовлеченными коллегами: цель, повестка, сценарий показа, тезисы, сложные вопросы, ожидаемые решения и чек-лист перед встречей.
+- Проверены ключевые демо-страницы через HTTP: `/login`, `/region` с `region24`, `/equipment` с `center`, `/admin` с `admin`, `/pricing` с `center`.
 - Выполнен один контролируемый ручной запуск: `20260622T040909Z`.
 - Итоговый статус запуска: `success`, 3/3 позиции получили успешные снимки.
 - Результаты:
@@ -25,6 +27,7 @@
 
 - `docs/52_price_monitoring_fallback_run_2026_06_22.md`
 - `docs/53_avito_vs_duff89_blocking_analysis.md`
+- `docs/54_demo_meeting_preparation.md`
 - `research/avito-monitor-worker-poc/scripts/duff89_probe.py`
 - `research/avito-monitor-worker-poc/src/worker.py`
 - `research/avito-monitor-worker-poc/tests/test_worker.py`
