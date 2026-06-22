@@ -51,9 +51,9 @@
   <text class="tiny" x="122" y="342">решения проверяются и фиксируются</text>
 
   <rect class="box-soft" x="95" y="390" width="350" height="118" />
-  <text class="text" x="122" y="426">Проверки</text>
-  <text class="small" x="122" y="458">тесты, ruff, compileall</text>
-  <text class="small" x="122" y="484">просмотр изменений человеком</text>
+  <text class="text" x="122" y="426">Контроль качества</text>
+  <text class="small" x="122" y="458">автотесты и проверка кода</text>
+  <text class="small" x="122" y="484">запуск демо и просмотр человеком</text>
 
   <rect class="box" x="95" y="552" width="350" height="118" />
   <text class="text" x="122" y="588">Git</text>
