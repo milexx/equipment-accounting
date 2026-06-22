@@ -21,6 +21,7 @@
       .label { font-family: Arial, sans-serif; font-size: 14px; font-weight: 700; fill: #2d3a4e; }
       .arrow { stroke: #4d5c70; stroke-width: 2.1; fill: none; marker-end: url(#arrow); stroke-linecap: round; stroke-linejoin: round; }
       .arrow-green { stroke: #2f9d72; stroke-width: 2.1; fill: none; marker-end: url(#arrowGreen); stroke-linecap: round; stroke-linejoin: round; }
+      .arrow-planned { stroke: #2f9d72; stroke-width: 2.1; fill: none; marker-end: url(#arrowGreen); stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 8 7; }
       .arrow-orange { stroke: #d08a19; stroke-width: 2.1; fill: none; marker-end: url(#arrowOrange); stroke-linecap: round; stroke-linejoin: round; }
     </style>
     <marker id="arrow" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto">
@@ -133,7 +134,7 @@
   <path class="arrow" d="M445 611 C525 600 525 312 595 291" />
   <text class="label" x="505" y="515">push</text>
 
-  <path class="arrow-green" d="M950 291 C1010 291 1045 281 1110 281" />
+  <path class="arrow-planned" d="M950 291 C1010 291 1045 281 1110 281" />
   <text class="label" x="972" y="267">зеркало в GitLab</text>
 
   <rect class="box-soft" x="1070" y="805" width="475" height="86" />
