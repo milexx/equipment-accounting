@@ -253,11 +253,15 @@ class WorkerBlockDiagnosticTest(unittest.TestCase):
                 {},
                 "blocked",
                 diagnostic,
+                {"impersonate": "chrome", "headers": {"user-agent": "test-agent"}},
             )
 
             self.assertEqual(report["status"], "blocked")
             self.assertEqual(report["block_diagnostic"]["status"], "success")
             self.assertTrue((job_dir / "block_diagnostic.json").exists())
+            response_meta = json.loads((job_dir / "response_meta.json").read_text(encoding="utf-8"))
+            self.assertEqual(response_meta["request"]["impersonate"], "chrome")
+            self.assertEqual(response_meta["request"]["headers"]["user-agent"], "test-agent")
 
     def test_format_diagnostic_command_accepts_relative_job_dir(self) -> None:
         job = {"code": "job1", "search_url": "https://www.avito.ru/all?q=Job+1"}

@@ -18,11 +18,15 @@
 - Run импортирован в БД: 103 observations, 3 snapshots, 0 parser errors.
 - `/pricing` проверен: графики и журнал показывают точки 2026-06-22 с фактическими источниками `avito` / `avito_duff89`.
 - Упрощен `scripts/import_price_poc_run.py`: убрана лишняя самоперезапускающаяся `python -c` обертка.
+- Разобрана причина различия `avito` blocked vs `avito_duff89` success: это не другой источник и не bypass, а разные HTTP-клиенты/запросные fingerprints к одному Avito через QRATOR.
+- В primary worker добавлена запись request fingerprint metadata (`impersonate`, `user-agent`) в `response_meta.json` для следующих controlled runs.
 
 Ключевые файлы:
 
 - `docs/52_price_monitoring_fallback_run_2026_06_22.md`
+- `docs/53_avito_vs_duff89_blocking_analysis.md`
 - `research/avito-monitor-worker-poc/scripts/duff89_probe.py`
+- `research/avito-monitor-worker-poc/src/worker.py`
 - `research/avito-monitor-worker-poc/tests/test_worker.py`
 - `scripts/import_price_poc_run.py`
 

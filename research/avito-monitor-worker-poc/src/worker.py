@@ -29,7 +29,8 @@ def write_json(path: Path, payload: Any) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def fetch_html(url: str, timeout: int) -> tuple[int, dict[str, str], str]:
+def fetch_html(url: str, timeout: int) -> tuple[int, dict[str, str], str, dict[str, Any]]:
+    impersonate = random.choice(["chrome", "edge", "firefox", "safari"])
     headers = {
         "user-agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -37,11 +38,14 @@ def fetch_html(url: str, timeout: int) -> tuple[int, dict[str, str], str]:
             f"Chrome/{random.randint(142, 147)}.0.0.0 Safari/537.36"
         ),
     }
-    impersonate = random.choice(["chrome", "edge", "firefox", "safari"])
     with requests.Session(impersonate=impersonate) as session:
         session.headers.update(headers)
         response = session.get(url, timeout=timeout, allow_redirects=True)
-        return response.status_code, dict(response.headers), response.text
+        request_meta = {
+            "impersonate": impersonate,
+            "headers": headers,
+        }
+        return response.status_code, dict(response.headers), response.text, request_meta
 
 
 def is_blocked(status_code: int, text: str) -> tuple[bool, str | None]:
@@ -553,11 +557,15 @@ def process_html(
     headers: dict[str, str],
     html_text: str,
     block_diagnostic: dict[str, Any] | None = None,
+    request_meta: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     raw_dir = job_dir / "raw_pages"
     (raw_dir / "page_1.html").parent.mkdir(parents=True, exist_ok=True)
     (raw_dir / "page_1.html").write_text(html_text, encoding="utf-8")
-    write_json(job_dir / "response_meta.json", {"status_code": status_code, "headers": headers})
+    response_meta = {"status_code": status_code, "headers": headers}
+    if request_meta:
+        response_meta["request"] = request_meta
+    write_json(job_dir / "response_meta.json", response_meta)
 
     status_blocked, reason = is_blocked(status_code, html_text)
     if status_blocked:
@@ -618,7 +626,7 @@ def run_job(
     fetched_at = iso(utc_now())
     job_dir = run_dir / job["code"]
     try:
-        status_code, headers, html_text = fetch_html(job["search_url"], timeout)
+        status_code, headers, html_text, request_meta = fetch_html(job["search_url"], timeout)
     except Exception as exc:
         report = {
             "job_code": job["code"],
@@ -631,7 +639,7 @@ def run_job(
         write_json(job_dir / "job_report.json", report)
         return apply_fallback_chain(job, fetched_at, job_dir, report, block_diagnostic, youla_fallback)
 
-    report = process_html(job, fetched_at, job_dir, status_code, headers, html_text, block_diagnostic)
+    report = process_html(job, fetched_at, job_dir, status_code, headers, html_text, block_diagnostic, request_meta)
     return apply_fallback_chain(job, fetched_at, job_dir, report, block_diagnostic, youla_fallback)
 
 
