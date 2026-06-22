@@ -75,8 +75,7 @@
   <rect class="box-warn" x="600" y="390" width="350" height="118" />
   <text class="text" x="627" y="426">Демо VPS</text>
   <text class="small" x="627" y="458">ручное развертывание</text>
-  <text class="small" x="627" y="484">systemd + uvicorn</text>
-  <text class="tiny" x="627" y="502">порт 8010</text>
+  <text class="small" x="627" y="484">внутренними скриптами</text>
 
   <rect class="box-soft" x="600" y="548" width="165" height="102" />
   <text class="text" x="625" y="584">Web</text>
@@ -143,7 +142,7 @@
   <text class="small" x="1100" y="878">журналирование, мониторинг, регламент</text>
 
   <rect class="box-warn" x="560" y="805" width="430" height="106" />
-  <text class="text" x="590" y="835">Важно для встречи</text>
+  <text class="text" x="590" y="835">Статус демо-контура</text>
   <text class="small" x="590" y="858">VPS - демо-стенд.</text>
   <text class="small" x="590" y="878">Корпоративный контур требует отдельных</text>
   <text class="small" x="590" y="898">решений по инфраструктуре и безопасности.</text>
