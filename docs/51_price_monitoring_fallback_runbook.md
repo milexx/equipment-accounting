@@ -62,7 +62,7 @@ youla_fallback_enabled: true
 Сформировать markdown-отчет:
 
 ```bash
-.venv/bin/python src/worker.py --analyze-run runs/<RUN_ID> --write-markdown-report --output runs/<RUN_ID>/offline_report.md
+.venv/bin/python src/worker.py --write-markdown-report runs/<RUN_ID> --output runs/<RUN_ID>/offline_report.md
 ```
 
 Проверить по каждой позиции:
