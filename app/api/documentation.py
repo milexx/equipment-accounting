@@ -37,6 +37,11 @@ DOCUMENTS = {
         "description": "Как гибридная разработка, Git, демо VPS и будущий корпоративный контур связаны между собой.",
         "path": DOCS_ROOT / "55_demo_deployment_scheme.md",
     },
+    "infralearn-site-structure": {
+        "title": "Структура InfraLearn",
+        "description": "Карта разделов внешнего учебного сайта без переноса материалов курса.",
+        "path": DOCS_ROOT / "58_infralearn_site_structure.md",
+    },
 }
 
 
