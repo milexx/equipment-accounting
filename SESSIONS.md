@@ -471,3 +471,142 @@ continue_endurance_with_automation_hold
 - Это диагностический probe, не источник цены.
 - Это не отменяет правило: не делать повторный live Avito run 2026-06-21 UTC.
 - Следующий live run можно делать 2026-06-22 UTC или позже.
+
+## 2026-06-23, точка возврата по проекту учета оборудования
+
+Контекст: сохранена актуальная точка возврата только по проекту `equipment-accounting`.
+
+### Текущее состояние
+
+- Репозиторий: `/opt/workspace/projects/equipment-accounting`.
+- Рабочее дерево на момент сохранения чистое.
+- Демо-приложение используется на VPS как стенд, промышленный корпоративный контур требует отдельных решений по инфраструктуре и безопасности.
+- Документация переведена обратно на русский язык; дальше документацию писать по-русски, кроме специальных терминов, если нет хорошего русского аналога.
+- Раздел InfraLearn из документации проекта учета оборудования удален и не относится к текущему контексту.
+
+### Бизнес-процесс и инструкции
+
+- `docs/11_business_processes.md` теперь содержит описание реализуемого бизнес-процесса без операторской инструкции.
+- `docs/12_operator_admin_guide.md` содержит инструкцию оператора и администратора, собранную из прежней второй части бизнес-процесса и старой инструкции.
+- Последние коммиты по этой части:
+  - `1acc634 Separate business process and operator guide docs`;
+  - `58f6676 Add InfraLearn site structure document`;
+  - `a07a664 Remove InfraLearn documentation section`.
+
+### Демо для руководства
+
+- Основной документ подготовки: `docs/54_demo_meeting_preparation.md`.
+- На встрече админку не показывать; только коротко сказать, что динамические поля, роли, пользователи, регионы и справочники заложены.
+- Оценщик показывать только опционально в конце как потенциальную экспериментальную функцию.
+- Схема разработки и переноса: `docs/55_demo_deployment_scheme.md`.
+- SVG схемы: `diagrams/demo-deployment/development_deployment_scheme.svg`.
+- Документационная страница не должна дублировать несколько одинаковых заголовков над схемой.
+- В схеме зафиксированы тезисы:
+  - разработка гибридная, код помогает писать LLM;
+  - Git фиксирует изменения;
+  - зеркало в корпоративный GitLab показано как планируемая связь;
+  - демо VPS - только демо-стенд;
+  - корпоративный контур требует отдельных решений по инфраструктуре и безопасности;
+  - есть заделы под S3 и Keycloak.
+
+### Оценщик и источники цен
+
+- Принята ручная цепочка источников:
+
+```text
+Avito -> Duff89/parser_avito -> Юла
+```
+
+- Главное правило: `blocked` от основного Avito не является итогом дня, если резервный источник вернул пригодные объявления.
+- Итоговый ценовой снимок должен сохранять фактический источник:
+  - `avito`;
+  - `avito_duff89`;
+  - `youla`.
+- Если все источники не дали данных, фиксировать состояние источников, но не превращать блокировку в ценовую точку.
+- Не включать планировщик, не делать цикл повторов после блокировки, не использовать прокси/cookies/обход CAPTCHA.
+- Боевой Avito запуск - не более одного раза в UTC-день, если нет явного решения на исключение.
+
+Ключевые документы:
+
+- `docs/50_price_monitoring_fallback_chain.md` - логика резервной цепочки.
+- `docs/51_price_monitoring_fallback_runbook.md` - операторский runbook.
+- `docs/53_avito_vs_duff89_blocking_analysis.md` - почему основной Avito может получить 403, а Duff89 в той же среде успешно вернуть данные.
+- `docs/56_price_monitoring_fallback_run_2026_06_23.md` - результат запуска 2026-06-23.
+- `docs/57_price_monitoring_run_plan_2026_06_24.md` - план следующего запуска.
+
+### Последний успешный прогон оценщика
+
+Дата: 2026-06-23.
+
+Run ID:
+
+```text
+20260623T052144Z
+```
+
+Результат:
+
+- статус run: `success`;
+- `kyocera_m2040dn`: `avito`, HTTP 200, медиана 24 999;
+- `lenovo_t14`: `avito`, HTTP 200, медиана 29 750;
+- `dell_r740`: `avito`, HTTP 200, медиана 153 400;
+- импорт в БД выполнен:
+
+```text
+observations_created=100
+snapshots_saved=3
+parser_errors_created=0
+```
+
+Вывод дня:
+
+```text
+keep_fallback_chain_for_mvp_manual
+```
+
+### Следующая точка входа
+
+Следующий рабочий шаг - выполнить план `docs/57_price_monitoring_run_plan_2026_06_24.md`, если текущая UTC-дата уже 2026-06-24 или позже и дневной guard разрешает запуск.
+
+Команды из рабочего каталога POC:
+
+```bash
+cd /opt/workspace/projects/equipment-accounting/research/avito-monitor-worker-poc
+.venv/bin/python src/worker.py --dry-run-config --config config/search_jobs.json
+.venv/bin/python src/worker.py --preflight --config config/search_jobs.json --runs-dir runs
+```
+
+Если preflight вернул `ready`, выполнить один боевой запуск:
+
+```bash
+.venv/bin/python src/worker.py --config config/search_jobs.json --runs-dir runs
+```
+
+После запуска:
+
+```bash
+.venv/bin/python src/worker.py --analyze-run runs/<RUN_ID>
+.venv/bin/python src/worker.py --write-markdown-report runs/<RUN_ID> --output runs/<RUN_ID>/offline_report.md
+cd /opt/workspace/projects/equipment-accounting
+.venv/bin/python scripts/import_price_poc_run.py research/avito-monitor-worker-poc/runs/<RUN_ID>
+```
+
+После импорта проверить интерфейс:
+
+```text
+http://185.168.208.240:8010/pricing
+```
+
+Создать документ дня:
+
+```text
+docs/58_price_monitoring_fallback_run_2026_06_24.md
+```
+
+### Что не делать при возврате
+
+- Не запускать Avito повторно в тот же UTC-день после блокировки.
+- Не импортировать `blocked` как ценовой снимок.
+- Не включать scheduler.
+- Не менять фильтры во время дневного запуска.
+- Не смешивать этот контекст с InfraLearn.
