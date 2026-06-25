@@ -2,7 +2,6 @@ import argparse
 import html
 import json
 import os
-import random
 import subprocess
 import statistics
 import time
@@ -14,6 +13,30 @@ from urllib.parse import quote, urlparse
 
 from bs4 import BeautifulSoup
 from curl_cffi import requests
+
+
+DEFAULT_PRIMARY_IMPERSONATE = "safari"
+PRIMARY_USER_AGENTS = {
+    "chrome": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/143.0.0.0 Safari/537.36"
+    ),
+    "edge": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0"
+    ),
+    "firefox": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:141.0) "
+        "Gecko/20100101 Firefox/141.0"
+    ),
+    "safari": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/605.1.15 (KHTML, like Gecko) "
+        "Version/17.5 Safari/605.1.15"
+    ),
+}
 
 
 def utc_now() -> datetime:
@@ -29,15 +52,17 @@ def write_json(path: Path, payload: Any) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def primary_request_profile() -> tuple[str, str]:
+    impersonate = os.getenv("AVITO_PRIMARY_IMPERSONATE", DEFAULT_PRIMARY_IMPERSONATE).strip().lower()
+    if impersonate not in PRIMARY_USER_AGENTS:
+        impersonate = DEFAULT_PRIMARY_IMPERSONATE
+    user_agent = os.getenv("AVITO_PRIMARY_USER_AGENT") or PRIMARY_USER_AGENTS[impersonate]
+    return impersonate, user_agent
+
+
 def fetch_html(url: str, timeout: int) -> tuple[int, dict[str, str], str, dict[str, Any]]:
-    impersonate = random.choice(["chrome", "edge", "firefox", "safari"])
-    headers = {
-        "user-agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            f"Chrome/{random.randint(142, 147)}.0.0.0 Safari/537.36"
-        ),
-    }
+    impersonate, user_agent = primary_request_profile()
+    headers = {"user-agent": user_agent}
     with requests.Session(impersonate=impersonate) as session:
         session.headers.update(headers)
         response = session.get(url, timeout=timeout, allow_redirects=True)

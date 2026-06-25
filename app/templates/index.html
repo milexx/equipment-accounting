@@ -4,24 +4,38 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Учёт оборудования</title>
-  <link rel="stylesheet" href="/static/app.css?v=20260620-typography">
+  <link rel="stylesheet" href="/static/app.css?v=20260624-infralearn">
 </head>
 <body>
-  <main class="page">
-    <h1>Учёт неиспользуемого оборудования</h1>
-    <p>
-      Локальное демо: регионы заводят оборудование, центр принимает решение
-      о списании, утилизации, оценке или продаже.
-    </p>
-    <p>
-      Текущий пользователь: <strong>{{ current_user.display_name }}</strong>.
-    </p>
-    <div class="actions">
-      <a href="/login">Войти</a>
+  <header class="topbar">
+    <div class="brand">Учёт оборудования</div>
+    <nav>
+      <a href="/" class="active">Главная</a>
+      <a href="/equipment">Реестр</a>
       <a href="/pricing">Оценщик</a>
       <a href="/documentation">Документация</a>
-      <a href="/health">Проверить backend</a>
-    </div>
+    </nav>
+  </header>
+
+  <main class="workbench">
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h1>Учёт неиспользуемого оборудования</h1>
+          <p>Локальное демо: регионы заводят оборудование, центр принимает решение о списании, утилизации, оценке или продаже.</p>
+        </div>
+      </div>
+
+      <div class="home-body">
+        <p>Текущий пользователь: <strong>{{ current_user.display_name }}</strong>.</p>
+        <div class="actions">
+          <a class="button-link primary-link" href="/login">Войти</a>
+          <a class="button-link" href="/pricing">Оценщик</a>
+          <a class="button-link" href="/documentation">Документация</a>
+          <a class="button-link" href="/health">Проверить backend</a>
+        </div>
+      </div>
+    </section>
   </main>
 </body>
 </html>

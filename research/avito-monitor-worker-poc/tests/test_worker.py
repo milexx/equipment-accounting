@@ -141,6 +141,29 @@ class WorkerSnapshotTest(unittest.TestCase):
         self.assertEqual(snapshot["source"], "youla")
 
 
+class WorkerPrimaryRequestProfileTest(unittest.TestCase):
+    def test_primary_request_profile_defaults_to_fixed_fingerprint(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            impersonate, user_agent = worker.primary_request_profile()
+
+        self.assertEqual(impersonate, "safari")
+        self.assertEqual(user_agent, worker.PRIMARY_USER_AGENTS["safari"])
+
+    def test_primary_request_profile_honors_env_override(self) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "AVITO_PRIMARY_IMPERSONATE": "chrome",
+                "AVITO_PRIMARY_USER_AGENT": "test-agent",
+            },
+            clear=True,
+        ):
+            impersonate, user_agent = worker.primary_request_profile()
+
+        self.assertEqual(impersonate, "chrome")
+        self.assertEqual(user_agent, "test-agent")
+
+
 class WorkerAnalyzeRunTest(unittest.TestCase):
     def test_analyze_run_reports_html_findings_and_reasons(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

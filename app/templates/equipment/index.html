@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Реестр оборудования</title>
-  <link rel="stylesheet" href="/static/app.css?v=20260620-typography">
+  <link rel="stylesheet" href="/static/app.css?v=20260624-infralearn">
 </head>
 <body>
   <header class="topbar">
@@ -149,13 +149,13 @@
           <thead>
             <tr>
               <th>ID</th>
+              <th>Наименование</th>
               <th>Статус</th>
               <th>Состояние</th>
               <th>Маршрут</th>
               <th>Регион</th>
               <th>Местонахождение</th>
               <th>Тип</th>
-              <th>Наименование</th>
               <th>Инв. номер</th>
               <th>Серийный</th>
               <th>Оценка</th>
@@ -165,7 +165,15 @@
           <tbody>
             {% for item in result.items %}
               <tr>
-                <td><a class="table-link" href="/equipment/{{ item.id }}">{{ item.id }}</a></td>
+                <td>{{ item.id }}</td>
+                <td>
+                  <a class="table-link strong" href="/equipment/{{ item.id }}">{{ item.title }}</a>
+                  {% if item.defect_description %}
+                    <div class="muted">{{ item.defect_description }}</div>
+                  {% elif item.sale_description %}
+                    <div class="muted">{{ item.sale_description }}</div>
+                  {% endif %}
+                </td>
                 <td>
                   <span class="status-badge status-{{ item.status.value }}">
                     {{ status_labels[item.status.value] }}
@@ -176,14 +184,6 @@
                 <td>{{ item.region.name }}</td>
                 <td>{{ item.location or "-" }}</td>
                 <td>{{ item.equipment_type.name }}</td>
-                <td>
-                  <a class="table-link strong" href="/equipment/{{ item.id }}">{{ item.title }}</a>
-                  {% if item.defect_description %}
-                    <div class="muted">{{ item.defect_description }}</div>
-                  {% elif item.sale_description %}
-                    <div class="muted">{{ item.sale_description }}</div>
-                  {% endif %}
-                </td>
                 <td>{{ item.inventory_number or "-" }}</td>
                 <td>{{ item.serial_number or "-" }}</td>
                 <td>{{ item.valuation_amount or "-" }}</td>
@@ -191,7 +191,7 @@
               </tr>
             {% else %}
               <tr>
-                <td colspan="11" class="empty">Нет записей по выбранным фильтрам.</td>
+                <td colspan="12" class="empty">Нет записей по выбранным фильтрам.</td>
               </tr>
             {% endfor %}
           </tbody>
