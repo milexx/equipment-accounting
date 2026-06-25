@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Оценщик</title>
-  <link rel="stylesheet" href="/static/app.css?v=20260620-typography">
+  <link rel="stylesheet" href="/static/app.css?v=20260624-infralearn">
 </head>
 <body>
   <header class="topbar">
@@ -22,126 +22,94 @@
         <div>
           <div class="breadcrumbs"><a href="/">Главная</a> / оценщик</div>
           <h1>Оценщик</h1>
-          <p>Ценовая история строится только по успешным оценкам. Блокировки хранятся отдельно как статус источника.</p>
+          <p>Главная страница показывает список отслеживаемого оборудования и агрегированную сводку. История, графики и журнал запусков открываются внутри страницы конкретной позиции.</p>
         </div>
       </div>
 
-      <div class="pricing-legend">
-        <span><i class="legend-line median"></i>Медиана</span>
-        <span><i class="legend-line min"></i>Минимум</span>
-        <span><i class="legend-line max"></i>Максимум</span>
-      </div>
-
-      <div class="pricing-grid">
-        {% for chart in charts %}
-          <article class="pricing-chart-block">
-            <div class="pricing-chart-head">
-              <div>
-                <h2>{{ chart.item_name }}</h2>
-                <span>{{ chart.item_code }}</span>
-              </div>
-              <div class="pricing-scale">
-                <strong>{{ chart.y_max_label }}</strong>
-                <span>{{ chart.y_min_label }}</span>
-              </div>
-            </div>
-
-            <div class="pricing-source-state">
-              <div>
-                <span>Последняя оценка</span>
-                <strong>{{ format_price(chart.latest_success_median) }}</strong>
-                <em>{{ chart.latest_success_date_label or "нет успешных данных" }}{% if chart.latest_success_source_code %} / {{ chart.latest_success_source_code }}{% endif %}</em>
-              </div>
-              <div>
-                <span>Источник сейчас</span>
-                <strong class="pricing-state-{{ chart.latest_status }}">{{ status_labels[chart.latest_status] }}</strong>
-                <em>{{ chart.latest_source_code }} / {{ chart.latest_date_label }} / {{ chart.latest_run_id }}</em>
-              </div>
-            </div>
-
-            <svg class="pricing-chart" viewBox="0 0 760 280" role="img" aria-label="График {{ chart.item_name }}">
-              <line x1="56" y1="56" x2="704" y2="56" class="chart-grid-line"></line>
-              <line x1="56" y1="144" x2="704" y2="144" class="chart-grid-line"></line>
-              <line x1="56" y1="232" x2="704" y2="232" class="chart-axis"></line>
-              <line x1="56" y1="56" x2="56" y2="232" class="chart-axis"></line>
-
-              {% if chart.max_polyline %}
-                <polyline points="{{ chart.max_polyline }}" class="chart-line max"></polyline>
-              {% endif %}
-              {% if chart.min_polyline %}
-                <polyline points="{{ chart.min_polyline }}" class="chart-line min"></polyline>
-              {% endif %}
-              {% if chart.median_polyline %}
-                <polyline points="{{ chart.median_polyline }}" class="chart-line median"></polyline>
-              {% endif %}
-
-              {% for point in chart.points %}
-                <line x1="{{ point.x }}" y1="232" x2="{{ point.x }}" y2="238" class="chart-tick"></line>
-                <text x="{{ point.x }}" y="258" text-anchor="middle" class="chart-label">{{ point.date_label[5:] }}</text>
-                {% if point.y_median is not none %}
-                  <circle cx="{{ point.x }}" cy="{{ point.y_median }}" r="5" class="chart-dot median"></circle>
-                  <title>{{ point.date_label }} median {{ format_price(point.median_price) }}</title>
-                {% endif %}
-              {% endfor %}
-            </svg>
-
-            <div class="pricing-point-list">
-              {% for point in chart.points %}
-                <div>
-                  <span>{{ point.date_label }}</span>
-                  <strong>{{ point.source_code }}</strong>
-                  <em>{{ format_price(point.median_price) }}</em>
-                </div>
-              {% else %}
-                <div>
-                  <span>Нет успешных оценок</span>
-                  <strong>{{ status_labels[chart.latest_status] }}</strong>
-                  <em>-</em>
-                </div>
-              {% endfor %}
-            </div>
-          </article>
-        {% else %}
-          <div class="empty">История оценщика пока пустая.</div>
-        {% endfor %}
-      </div>
+      <section class="pricing-overview">
+        <article class="pricing-overview-card">
+          <span>Позиции в мониторинге</span>
+          <strong>{{ overview.items_total }}</strong>
+          <em>Активный список оценщика</em>
+        </article>
+        <article class="pricing-overview-card">
+          <span>Успешный статус сейчас</span>
+          <strong>{{ overview.success_items_total }}</strong>
+          <em>Позиции с последним статусом `success`</em>
+        </article>
+        <article class="pricing-overview-card">
+          <span>Ошибки и блокировки</span>
+          <strong>{{ overview.blocked_items_total }}</strong>
+          <em>`blocked`, `captcha` и `parser_error`</em>
+        </article>
+        <article class="pricing-overview-card">
+          <span>Последний день снимков</span>
+          <strong>{{ overview.latest_snapshot_date_label or "-" }}</strong>
+          <em>Run-ов в срезе: {{ overview.latest_runs_total }}</em>
+        </article>
+      </section>
 
       <div class="table-wrap">
-        <div class="table-caption">Журнал источника</div>
+        <div class="table-caption">Список оборудования оценщика</div>
         <table>
           <thead>
             <tr>
               <th>Позиция</th>
-              <th>Дата</th>
-              <th>Run</th>
-              <th>Источник</th>
-              <th>Статус</th>
-              <th>Relevant</th>
-              <th>Min</th>
-              <th>Median</th>
-              <th>Max</th>
+              <th>Последний статус</th>
+              <th>Последняя успешная цена</th>
+              <th>Диапазон</th>
+              <th>Агрегаты последнего запуска</th>
+              <th>История</th>
             </tr>
           </thead>
           <tbody>
-            {% for snapshot in snapshots %}
+            {% for row in summary_rows %}
               <tr>
-                <td>{{ snapshot.monitored_item.name }}</td>
-                <td>{{ snapshot.snapshot_date }}</td>
-                <td><code>{{ snapshot.scrape_run.external_run_id }}</code></td>
-                <td><code>{{ snapshot.source.code }}</code></td>
                 <td>
-                  <span class="status-badge pricing-status-{{ snapshot.status.value }}">
-                    {{ status_labels[snapshot.status.value] }}
+                  <a class="table-link strong" href="{{ row.detail_url }}">{{ row.item_name }}</a>
+                  <div class="muted">
+                    <code>{{ row.item_code }}</code>
+                    • {{ row.latest_date_label }}
+                    • <code>{{ row.latest_run_id }}</code>
+                    • {{ row.latest_source_code }}
+                  </div>
+                </td>
+                <td>
+                  <span class="status-badge pricing-status-{{ row.latest_status }}">
+                    {{ status_labels[row.latest_status] }}
                   </span>
                 </td>
-                <td>{{ snapshot.relevant_count }}</td>
-                <td>{{ format_price(snapshot.min_price) }}</td>
-                <td>{{ format_price(snapshot.median_price) }}</td>
-                <td>{{ format_price(snapshot.max_price) }}</td>
+                <td>
+                  <div class="strong">{{ format_price(row.latest_success_median) }}</div>
+                  <div class="muted">
+                    {{ row.latest_success_date_label or "нет успешных снимков" }}
+                    {% if row.latest_success_source_code %} • {{ row.latest_success_source_code }}{% endif %}
+                  </div>
+                </td>
+                <td>
+                  <div class="strong">
+                    {{ format_price(row.latest_success_min) }} - {{ format_price(row.latest_success_max) }}
+                  </div>
+                  <div class="muted">Min / Max по последнему успешному снимку</div>
+                </td>
+                <td>
+                  <div class="pricing-aggregate">
+                    <span>Relevant <strong>{{ row.latest_relevant_count }}</strong></span>
+                    <span>Unknown <strong>{{ row.latest_unknown_count }}</strong></span>
+                    <span>Rejected <strong>{{ row.latest_rejected_count }}</strong></span>
+                  </div>
+                </td>
+                <td>
+                  <div class="pricing-history-meta">
+                    <span>{{ row.success_snapshots_total }} успешных</span>
+                    <span>{{ row.snapshots_total }} всего</span>
+                  </div>
+                  <a class="table-link" href="{{ row.detail_url }}">Открыть историю</a>
+                </td>
               </tr>
             {% else %}
               <tr>
-                <td colspan="9" class="empty">Нет сохранённых snapshots.</td>
+                <td colspan="6" class="empty">История оценщика пока пустая.</td>
               </tr>
             {% endfor %}
           </tbody>
