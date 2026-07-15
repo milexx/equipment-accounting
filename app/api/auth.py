@@ -22,10 +22,7 @@ def login_page(
     users = list(
         db.scalars(
             select(User)
-            .where(
-                User.is_active.is_(True),
-                User.role != UserRole.center_admin,
-            )
+            .where(User.is_active.is_(True))
             .order_by(User.role, User.login)
         )
     )

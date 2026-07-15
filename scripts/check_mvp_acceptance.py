@@ -100,7 +100,7 @@ def check_http_smoke() -> list[CheckResult]:
     checks = [
         ("health", "/health", None, 200, '"status":"ok"'),
         ("home", "/", None, 200, "Учёт неиспользуемого оборудования"),
-        ("login", "/login", None, 200, "Вход в демо"),
+        ("login", "/login", None, 200, "Администратор центра"),
         ("region", "/region", "demo_user=region24", 200, "Рабочее место филиала"),
         ("equipment list", "/equipment", "demo_user=center", 200, "Реестр оборудования"),
         ("pricing", "/pricing", "demo_user=center", 200, "Оценщик"),
