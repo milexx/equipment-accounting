@@ -79,7 +79,7 @@ docs/38_price_monitoring_day2_operator_runbook.md
 Expected output after day 2:
 
 ```text
-docs/34_price_monitoring_endurance_day_2.md
-docs/37_price_monitoring_gate_summary.md
+local/docs/34_price_monitoring_endurance_day_2.md
+local/docs/37_price_monitoring_gate_summary.md
 runs/{run_id}/offline_report.md
 ```

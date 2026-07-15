@@ -10,7 +10,7 @@
 
 Перед началом кода подтвердить:
 
-- gate decision прочитан: `docs/45_price_monitoring_gate_decision_after_day_3.md`;
+- gate decision прочитан: `local/docs/45_price_monitoring_gate_decision_after_day_3.md`;
 - Avito остаётся unstable experimental source;
 - первый prototype начинается с backend/data model, не с UI;
 - scheduler не включается в первом backend-шаге;

@@ -11,7 +11,7 @@
 - `docs/16_price_monitoring_decisions.md` - принятые решения;
 - `docs/17_price_monitoring_developer_handoff.md` - техническая карта для разработчика;
 - `docs/30_clean_room_avito_parser_poc_results.md` - результаты clean-room POC;
-- `docs/31_price_monitoring_research_timeline_2026-06-17.md` - хронология research.
+- `local/docs/31_price_monitoring_research_timeline_2026-06-17.md` - хронология research.
 
 ## 1. Цель
 
@@ -89,7 +89,7 @@ Gate-решения после endurance test:
    - `price_max`.
 5. Добавить в README POC таблицу endurance-журнала.
 6. Запустить один live run.
-7. Зафиксировать результат в отдельном документе `docs/33_price_monitoring_endurance_day_1.md`.
+7. Зафиксировать результат в отдельном документе `local/docs/33_price_monitoring_endurance_day_1.md`.
 
 Критерий готовности:
 

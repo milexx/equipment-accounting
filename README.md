@@ -81,9 +81,9 @@ python3 -m venv .venv
 
 ## Документы
 
+- `docs/DOCUMENT_CLASSES.md` - правило разделения Git-документов и локальных артефактов;
 - `docs/05_mvp_plan.md` - актуальный план MVP и правило обработки новых идей;
 - `docs/11_business_processes.md` - бизнес-процесс системы;
 - `docs/12_operator_admin_guide.md` - инструкция оператора и администратора;
 - `docs/13_tech_stack.md` - описание техстека системы;
-- `docs/technical_specification.md` - техническое задание;
-- `docs/continuation.md` - точка возврата для продолжения разработки.
+- `docs/technical_specification.md` - техническое задание.

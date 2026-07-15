@@ -27,6 +27,9 @@ uploads/
 exports/
 logs/
 
+# Local-only project artifacts and internal working documents
+/local/
+
 # Database/runtime files
 *.sqlite
 *.db

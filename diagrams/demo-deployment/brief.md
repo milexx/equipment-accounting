@@ -7,7 +7,7 @@
 ## Источник
 
 - проект `equipment-accounting`
-- документ `docs/54_demo_meeting_preparation.md`
+- документ `local/docs/54_demo_meeting_preparation.md`
 - текущая постановка по демо для руководства
 
 ## Цель Диаграммы

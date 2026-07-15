@@ -9,7 +9,7 @@
 - `docs/14_price_monitoring_module.md`;
 - `docs/17_price_monitoring_developer_handoff.md`;
 - `docs/32_price_monitoring_implementation_plan.md`;
-- `docs/33_price_monitoring_endurance_day_1.md`;
+- `local/docs/33_price_monitoring_endurance_day_1.md`;
 - `docs/34_price_monitoring_endurance_day_2_plan.md`.
 
 ## 1. Правило Gate

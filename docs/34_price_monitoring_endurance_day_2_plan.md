@@ -58,8 +58,8 @@ Worker остановит повторный live run в тот же UTC-ден�
 ```bash
 .venv/bin/python src/worker.py --analyze-run runs/{run_id}
 .venv/bin/python src/worker.py --write-markdown-report runs/{run_id} --output runs/{run_id}/offline_report.md
-.venv/bin/python src/worker.py --write-endurance-doc runs/{run_id} --output ../../docs/34_price_monitoring_endurance_day_2.md --day 2 --date 2026-06-19
-.venv/bin/python src/worker.py --write-gate-summary --runs-dir runs --output ../../docs/37_price_monitoring_gate_summary.md
+.venv/bin/python src/worker.py --write-endurance-doc runs/{run_id} --output ../../local/docs/34_price_monitoring_endurance_day_2.md --day 2 --date 2026-06-19
+.venv/bin/python src/worker.py --write-gate-summary --runs-dir runs --output ../../local/docs/37_price_monitoring_gate_summary.md
 ```
 
 Если перед запуском локальный ignored config устарел:
