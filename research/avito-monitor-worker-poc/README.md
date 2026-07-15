@@ -61,6 +61,7 @@ runs/{run_id}/{job_code}/
 Основные файлы:
 
 - `raw_pages/page_1.html`;
+- `state_data.json`;
 - `raw_listings.json`;
 - `normalized_listings.json`;
 - `relevant_listings.json`;
@@ -69,6 +70,18 @@ runs/{run_id}/{job_code}/
 - `daily_snapshot.json`;
 - `job_report.json`;
 - `run_report.json`.
+
+Для минимальной доказательной базы worker также готовит:
+
+```text
+runs/{run_id}/evidence/{job_code}/
+```
+
+Внутри:
+
+- `manifest.json` - сводка evidence bundle;
+- `search_result.html` и/или `search_result.json` - сохранённая выдача источника;
+- без обязательных карточек объявлений и без скриншотов.
 
 ## Offline-Анализ Run
 
@@ -95,13 +108,13 @@ Markdown-отчёт из сохранённого run:
 Документ endurance day report для `docs/`:
 
 ```bash
-.venv/bin/python src/worker.py --write-endurance-doc runs/{run_id} --output ../../docs/34_price_monitoring_endurance_day_2.md --day 2 --date 2026-06-19
+.venv/bin/python src/worker.py --write-endurance-doc runs/{run_id} --output ../../local/docs/34_price_monitoring_endurance_day_2.md --day 2 --date 2026-06-19
 ```
 
 Сводка gate по всем live runs:
 
 ```bash
-.venv/bin/python src/worker.py --write-gate-summary --runs-dir runs --output ../../docs/37_price_monitoring_gate_summary.md
+.venv/bin/python src/worker.py --write-gate-summary --runs-dir runs --output ../../local/docs/37_price_monitoring_gate_summary.md
 ```
 
 Пересчёт сохранённого HTML без сетевого запроса:
@@ -182,7 +195,7 @@ runs/{run_id}/{job_code}/duff89_probe_report.json
 
 | День | Дата | Позиции | Результат | Документ |
 |---|---|---|---|---|
-| 1 | 2026-06-18 | `kyocera_m2040dn`, `lenovo_t14`, `dell_r740` | `partial_success_http_unstable` | `docs/33_price_monitoring_endurance_day_1.md` |
+| 1 | 2026-06-18 | `kyocera_m2040dn`, `lenovo_t14`, `dell_r740` | `partial_success_http_unstable` | `local/docs/33_price_monitoring_endurance_day_1.md` |
 | 2 | 2026-06-19 или позже | `kyocera_m2040dn`, `lenovo_t14`, `dell_r740` | planned | `docs/34_price_monitoring_endurance_day_2_plan.md` |
 
 В git коммитятся только конфиги, код и отчёты. Runtime-данные `runs/`, raw HTML и локальный `config/search_jobs.json` не коммитятся.

@@ -1,6 +1,7 @@
 import importlib.util
 import json
 import os
+import socket
 import sys
 import tempfile
 import unittest
@@ -75,6 +76,122 @@ class WorkerClassificationTest(unittest.TestCase):
         self.assertEqual(status, "rejected")
         self.assertIn("missing_required:t14", reasons)
 
+    def test_multi_unit_offer_marks_listing_unknown(self) -> None:
+        listing = {
+            "title": "Lenovo ThinkPad T14",
+            "description": "В наличии 10 шт. Продается партией.",
+            "price": 30000,
+        }
+
+        status, reasons = worker.classify_listing(listing, self.job)
+
+        self.assertEqual(status, "unknown")
+        self.assertIn("multi_unit_offer", reasons)
+
+    def test_explicit_single_unit_price_does_not_trigger_multi_unit_offer(self) -> None:
+        listing = {
+            "title": "Lenovo ThinkPad T14",
+            "description": "В наличии 10 шт. Цена за 1 шт.",
+            "price": 30000,
+        }
+
+        status, reasons = worker.classify_listing(listing, self.job)
+
+        self.assertEqual(status, "relevant")
+        self.assertNotIn("multi_unit_offer", reasons)
+
+    def test_explicit_single_unit_price_with_ukazana_form_does_not_trigger_multi_unit_offer(self) -> None:
+        listing = {
+            "title": "Lenovo ThinkPad T14",
+            "description": "Количество: 3 шт. Цена указана за 1 штуку.",
+            "price": 30000,
+        }
+
+        status, reasons = worker.classify_listing(listing, self.job)
+
+        self.assertEqual(status, "relevant")
+        self.assertNotIn("multi_unit_offer", reasons)
+
+    def test_per_unit_rub_marker_does_not_trigger_multi_unit_offer(self) -> None:
+        listing = {
+            "title": "Lenovo ThinkPad T14",
+            "description": "В наличии 3 шт. Для юрлиц 32500 руб/шт.",
+            "price": 30000,
+        }
+
+        status, reasons = worker.classify_listing(listing, self.job)
+
+        self.assertEqual(status, "relevant")
+        self.assertNotIn("multi_unit_offer", reasons)
+
+    def test_single_unit_stock_marker_does_not_trigger_multi_unit_offer(self) -> None:
+        listing = {
+            "title": "Lenovo ThinkPad T14",
+            "description": "В наличии 1 шт. Цена актуальная.",
+            "price": 30000,
+        }
+
+        status, reasons = worker.classify_listing(listing, self.job)
+
+        self.assertEqual(status, "relevant")
+        self.assertNotIn("multi_unit_offer", reasons)
+
+    def test_cisco_on_order_listing_is_rejected_by_job_negative_term(self) -> None:
+        job = {
+            "code": "cisco_7811",
+            "position_name": "Cisco IP Phone 7811",
+            "required_terms": ["cisco", "7811"],
+            "negative_terms": ["на заказ", "под заказ"],
+            "price_min": 1000,
+            "price_max": 20000,
+        }
+        listing = {
+            "title": "IP телефон Cisco CP-7811-K9",
+            "description": "На заказ. Актуальность цены уточняйте у менеджера.",
+            "price": 16780,
+        }
+
+        status, reasons = worker.classify_listing(listing, job)
+
+        self.assertEqual(status, "rejected")
+        self.assertIn("negative_term:на заказ", reasons)
+
+    def test_normalize_listing_extracts_nested_description_for_negative_terms(self) -> None:
+        job = {
+            "code": "cisco_7811",
+            "position_name": "Cisco IP Phone 7811",
+            "required_terms": ["cisco", "7811"],
+            "negative_terms": ["на заказ", "под заказ"],
+            "price_min": 1000,
+            "price_max": 20000,
+        }
+        raw_item = {
+            "id": 2941553272,
+            "title": "IP телефон Cisco CP-7811-K9",
+            "urlPath": "/moskva/orgtehnika_i_rashodniki/ip_telefon_cisco_cp-7811-k9_2941553272",
+            "priceDetailed": {"value": 16780},
+            "iva": {
+                "DescriptionStep": [
+                    {
+                        "payload": {
+                            "description": (
+                                "IP телефон Cisco CP-7811-K9=.\n"
+                                "На заказ. Актуальность цены уточняйте у менеджера."
+                            ),
+                        }
+                    }
+                ],
+            },
+        }
+
+        listing = worker.normalize_listing(raw_item, job, "2026-07-09T05:14:22Z")
+        assert listing is not None
+        status, reasons = worker.classify_listing(listing, job)
+
+        self.assertEqual(listing["description"], raw_item["iva"]["DescriptionStep"][0]["payload"]["description"])
+        self.assertEqual(status, "rejected")
+        self.assertIn("negative_term:на заказ", reasons)
+
 
 class WorkerPageProblemTest(unittest.TestCase):
     def test_detects_nbsp_page_not_found(self) -> None:
@@ -95,24 +212,41 @@ class WorkerPageProblemTest(unittest.TestCase):
         self.assertTrue(is_blocked)
         self.assertEqual(reason, "access_restricted")
 
+    def test_extract_state_data_supports_loader_data_catalog_shape(self) -> None:
+        html_text = """
+        <html><body>
+        <script type="mime/invalid" data-mfe-state="true">
+        {"loaderData":{"data":{"catalog":{"items":[{"id":1,"title":"Lenovo","urlPath":"/item","priceDetailed":{"value":1000}}]}}}}
+        </script>
+        </body></html>
+        """
+
+        state_data = worker.extract_state_data(html_text)
+
+        self.assertIn("catalog", state_data)
+        self.assertEqual(state_data["catalog"]["items"][0]["id"], 1)
+
 
 class WorkerSnapshotTest(unittest.TestCase):
     def test_snapshot_uses_relevant_prices_only(self) -> None:
         job = {"code": "test", "position_name": "Test"}
         classified = [
             {"price": 100, "relevance_status": "relevant"},
+            {"price": 150, "relevance_status": "relevant"},
+            {"price": 200, "relevance_status": "relevant"},
+            {"price": 250, "relevance_status": "relevant"},
             {"price": 300, "relevance_status": "relevant"},
             {"price": 1, "relevance_status": "unknown"},
             {"price": 999, "relevance_status": "rejected"},
         ]
-        relevant = classified[:2]
+        relevant = classified[:5]
 
-        snapshot = worker.calculate_snapshot(job, 4, classified, relevant, "2026-06-18T00:00:00Z")
+        snapshot = worker.calculate_snapshot(job, 7, classified, relevant, "2026-06-18T00:00:00Z")
 
         self.assertEqual(snapshot["status"], "success")
         self.assertEqual(snapshot["min_price"], 100)
         self.assertEqual(snapshot["max_price"], 300)
-        self.assertEqual(snapshot["median_price"], 200.0)
+        self.assertEqual(snapshot["median_price"], 200)
         self.assertEqual(snapshot["unknown_count"], 1)
         self.assertEqual(snapshot["rejected_count"], 1)
 
@@ -125,6 +259,21 @@ class WorkerSnapshotTest(unittest.TestCase):
         self.assertIsNone(snapshot["min_price"])
         self.assertIsNone(snapshot["max_price"])
         self.assertIsNone(snapshot["median_price"])
+
+    def test_snapshot_uses_upper_median_for_even_sample(self) -> None:
+        job = {"code": "test", "position_name": "Test"}
+        classified = [
+            {"price": 100, "relevance_status": "relevant"},
+            {"price": 200, "relevance_status": "relevant"},
+            {"price": 300, "relevance_status": "relevant"},
+            {"price": 400, "relevance_status": "relevant"},
+            {"price": 500, "relevance_status": "relevant"},
+            {"price": 600, "relevance_status": "relevant"},
+        ]
+
+        snapshot = worker.calculate_snapshot(job, 6, classified, classified, "2026-06-18T00:00:00Z")
+
+        self.assertEqual(snapshot["median_price"], 400)
 
     def test_snapshot_can_record_fallback_source(self) -> None:
         job = {"code": "test", "position_name": "Test"}
@@ -139,6 +288,35 @@ class WorkerSnapshotTest(unittest.TestCase):
         )
 
         self.assertEqual(snapshot["source"], "youla")
+
+    def test_snapshot_marks_low_sample_when_relevant_count_below_threshold(self) -> None:
+        job = {"code": "test", "position_name": "Test"}
+
+        snapshot = worker.calculate_snapshot(
+            job,
+            2,
+            [{"price": 100, "relevance_status": "relevant"}],
+            [{"price": 100, "relevance_status": "relevant"}],
+            "2026-06-18T00:00:00Z",
+        )
+
+        self.assertEqual(snapshot["status"], "low_sample")
+
+
+class WorkerFallbackPolicyTest(unittest.TestCase):
+    def test_low_sample_primary_report_is_not_replaced(self) -> None:
+        primary_report = {"status": "low_sample", "source": "avito", "items_relevant": 4}
+
+        result = worker.apply_fallback_chain(
+            {"code": "cisco_7811", "position_name": "Cisco IP Phone 7811"},
+            "2026-07-03T00:00:00Z",
+            Path("/tmp/nonexistent"),
+            primary_report,
+            None,
+            {"enabled": True, "timeout_seconds": 20},
+        )
+
+        self.assertIs(result, primary_report)
 
 
 class WorkerPrimaryRequestProfileTest(unittest.TestCase):
@@ -162,6 +340,71 @@ class WorkerPrimaryRequestProfileTest(unittest.TestCase):
 
         self.assertEqual(impersonate, "chrome")
         self.assertEqual(user_agent, "test-agent")
+
+
+class WorkerEvidenceBundleTest(unittest.TestCase):
+    def test_process_html_writes_evidence_bundle_for_avito(self) -> None:
+        job = {
+            "code": "lenovo_t14",
+            "position_name": "Lenovo ThinkPad T14",
+            "search_url": "https://www.avito.ru/all?q=Lenovo+ThinkPad+T14",
+            "required_terms": ["thinkpad", "t14"],
+            "negative_terms": [],
+            "price_min": 10000,
+            "price_max": 150000,
+        }
+        state_payload = {
+            "state": {
+                "data": {
+                    "catalog": {
+                        "items": [
+                            {
+                                "id": "1001",
+                                "title": "Lenovo ThinkPad T14 Gen 1",
+                                "description": "Рабочий ноутбук",
+                                "urlPath": "/moskva/noutbuki/lenovo_thinkpad_t14_1001",
+                                "priceDetailed": {"value": 43000},
+                                "location": {"name": "Москва"},
+                            },
+                            {
+                                "id": "1002",
+                                "title": "Lenovo ThinkPad T14 i5",
+                                "description": "Ноутбук в хорошем состоянии",
+                                "urlPath": "/kazan/noutbuki/lenovo_thinkpad_t14_1002",
+                                "priceDetailed": {"value": 45000},
+                                "location": {"name": "Казань"},
+                            },
+                        ]
+                    }
+                }
+            }
+        }
+        html_text = (
+            '<html><body><script type="mime/invalid" data-mfe-state="true">'
+            + json.dumps(state_payload, ensure_ascii=False)
+            + "</script></body></html>"
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            job_dir = Path(tmp) / "run1" / "lenovo_t14"
+            report = worker.process_html(
+                job,
+                "2026-06-29T04:58:56Z",
+                job_dir,
+                200,
+                {"content-type": "text/html"},
+                html_text,
+            )
+            evidence_dir = job_dir.parent / "evidence" / "lenovo_t14"
+            html_exists = (evidence_dir / "search_result.html").exists()
+            manifest = json.loads((evidence_dir / "manifest.json").read_text(encoding="utf-8"))
+            search_state = json.loads((evidence_dir / "search_result.json").read_text(encoding="utf-8"))
+
+        self.assertEqual(report["status"], "low_sample")
+        self.assertTrue(html_exists)
+        self.assertEqual(manifest["relevant_count"], 2)
+        self.assertEqual(manifest["artifacts"][0]["path"], "evidence/lenovo_t14/search_result.html")
+        self.assertEqual(search_state["catalog"]["items"][0]["id"], "1001")
 
 
 class WorkerAnalyzeRunTest(unittest.TestCase):
@@ -223,6 +466,30 @@ class WorkerAnalyzeRunTest(unittest.TestCase):
             report = worker.analyze_run(run_dir)
 
         self.assertEqual(report["jobs"][0]["block_diagnostic"]["status"], "success")
+
+    def test_analyze_run_ignores_evidence_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = Path(tmp) / "run"
+            job_dir = run_dir / "job1"
+            evidence_dir = run_dir / "evidence"
+            job_dir.mkdir(parents=True)
+            evidence_dir.mkdir(parents=True)
+            (run_dir / "run_report.json").write_text(
+                json.dumps({"run_id": "run", "status": "success", "jobs_total": 1}),
+                encoding="utf-8",
+            )
+            (job_dir / "job_report.json").write_text(
+                json.dumps({"status": "success", "http_status": 200}),
+                encoding="utf-8",
+            )
+            (evidence_dir / "manifest.json").write_text(
+                json.dumps({"artifacts": []}),
+                encoding="utf-8",
+            )
+
+            report = worker.analyze_run(run_dir)
+
+        self.assertEqual([job["job_code"] for job in report["jobs"]], ["job1"])
 
 
 class WorkerBlockDiagnosticTest(unittest.TestCase):
@@ -409,12 +676,16 @@ class WorkerFallbackChainTest(unittest.TestCase):
                 None,
                 {"status": "blocked", "http_status": 403, "block_diagnostic": {"status": "success"}},
             )
+            evidence_dir = job_dir.parent / "evidence" / "job1"
+            manifest = json.loads((evidence_dir / "manifest.json").read_text(encoding="utf-8"))
 
         self.assertIsNotNone(report)
         assert report is not None
-        self.assertEqual(report["status"], "success")
+        self.assertEqual(report["status"], "low_sample")
         self.assertEqual(report["source"], "avito_duff89")
         self.assertEqual(report["items_relevant"], 1)
+        self.assertEqual(manifest["source"], "avito_duff89")
+        self.assertEqual(manifest["artifacts"][0]["path"], "evidence/job1/search_result.json")
 
 
 class WorkerConfigValidationTest(unittest.TestCase):
@@ -512,11 +783,13 @@ class WorkerPreflightTest(unittest.TestCase):
             runs_dir = root / "runs"
             runs_dir.mkdir()
 
-            exit_code, payload = worker.build_preflight(config_path, runs_dir)
+            with patch.object(worker.socket, "getaddrinfo", return_value=[object()]):
+                exit_code, payload = worker.build_preflight(config_path, runs_dir)
 
         self.assertEqual(exit_code, 0)
         self.assertEqual(payload["status"], "ready")
         self.assertTrue(payload["config"]["valid"])
+        self.assertEqual(payload["runtime"]["status"], "ready")
 
     def test_preflight_blocks_same_day_live_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -537,11 +810,27 @@ class WorkerPreflightTest(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            exit_code, payload = worker.build_preflight(config_path, runs_dir)
+            with patch.object(worker.socket, "getaddrinfo", return_value=[object()]):
+                exit_code, payload = worker.build_preflight(config_path, runs_dir)
 
         self.assertEqual(exit_code, 3)
         self.assertEqual(payload["status"], "blocked_by_same_day_guard")
         self.assertTrue(payload["same_day_guard"]["live_run_exists"])
+
+    def test_preflight_reports_infrastructure_unready_on_dns_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config_path = self.valid_config_path(root)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+
+            with patch.object(worker.socket, "getaddrinfo", side_effect=socket.gaierror(-3, "Temporary failure")):
+                exit_code, payload = worker.build_preflight(config_path, runs_dir)
+
+        self.assertEqual(exit_code, 4)
+        self.assertEqual(payload["status"], "infrastructure_unready")
+        self.assertEqual(payload["runtime"]["status"], "dns_unready")
+        self.assertEqual(payload["runtime"]["failures"][0]["host"], "www.avito.ru")
 
 
 class WorkerMarkdownReportTest(unittest.TestCase):
@@ -805,6 +1094,55 @@ class WorkerLiveRunGuardTest(unittest.TestCase):
         assert existing_run is not None
         self.assertEqual(existing_run["run_id"], "20260618T010000Z")
         self.assertEqual(existing_run["status"], "partial_success")
+
+    def test_live_run_exists_for_date_ignores_infrastructure_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            runs_dir = Path(tmp)
+            live_dir = runs_dir / "20260618T010000Z"
+            live_dir.mkdir()
+            (live_dir / "run_report.json").write_text(
+                json.dumps(
+                    {
+                        "run_id": "20260618T010000Z",
+                        "started_at": "2026-06-18T01:00:00Z",
+                        "status": "partial_success",
+                        "job_reports": [
+                            {
+                                "job_code": "job1",
+                                "status": "parser_error",
+                                "http_status": None,
+                                "error": "DNSError: Could not resolve host: www.avito.ru",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            run_exists, existing_run = worker.live_run_exists_for_date(runs_dir, "2026-06-18")
+
+        self.assertFalse(run_exists)
+        self.assertIsNone(existing_run)
+
+
+class WorkerMainTest(unittest.TestCase):
+    def test_main_aborts_before_creating_live_run_on_dns_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config_path = WorkerPreflightTest().valid_config_path(root)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+
+            with patch.object(worker.socket, "getaddrinfo", side_effect=socket.gaierror(-3, "Temporary failure")):
+                with patch.object(
+                    sys,
+                    "argv",
+                    ["worker.py", "--config", str(config_path), "--runs-dir", str(runs_dir)],
+                ):
+                    exit_code = worker.main()
+
+            self.assertEqual(exit_code, 4)
+            self.assertEqual(list(runs_dir.glob("*/run_report.json")), [])
 
 
 if __name__ == "__main__":

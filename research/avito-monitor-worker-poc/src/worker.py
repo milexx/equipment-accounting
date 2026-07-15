@@ -2,8 +2,9 @@ import argparse
 import html
 import json
 import os
+import re
+import socket
 import subprocess
-import statistics
 import time
 from collections import Counter
 from datetime import datetime, timezone
@@ -38,6 +39,39 @@ PRIMARY_USER_AGENTS = {
     ),
 }
 
+INFRASTRUCTURE_ERROR_MARKERS = [
+    "could not resolve host",
+    "failed to connect",
+    "connection timed out",
+    "network is unreachable",
+    "temporary failure in name resolution",
+]
+MIN_RELEVANT_FOR_SUCCESS = 5
+MULTI_UNIT_PATTERNS = [
+    re.compile(r"\b\d+\s*шт\.?\b"),
+    re.compile(r"\bиз\s+\d+\s*шт\.?\b"),
+    re.compile(r"\bлот\s+из\s+\d+\b"),
+    re.compile(r"\bкомплект\s+из\s+\d+\b"),
+]
+MULTI_UNIT_SINGLE_PRICE_EXCEPTIONS = [
+    re.compile(r"в\s+наличии\s+1\s*шт[!. ]"),
+    re.compile(r"\b1\s*шт\.?\b"),
+    re.compile(r"цена\s+за\s+1\s*шт\.?\b"),
+    re.compile(r"цена\s+указана\s+за\s+1\s*шт\.?\b"),
+    re.compile(r"цена\s+указана\s+за\s+1\s*штук[ауи]?\b"),
+    re.compile(r"цена\s+за\s+одн[ау]\s*шт\.?\b"),
+    re.compile(r"цена\s+указана\s+за\s+один\s+телефон\b"),
+    re.compile(r"стоимость\s+за\s+1\s*шт\.?\b"),
+    re.compile(r"\b\d+\s*руб\s*/\s*шт\.?\b"),
+]
+MULTI_UNIT_HINTS = [
+    "в наличии",
+    "несколько штук",
+    "несколько единиц",
+    "партия",
+    "оптом",
+]
+
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -50,6 +84,32 @@ def iso(dt: datetime) -> str:
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def read_json_file(path: Path) -> Any:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def relative_path(path: Path, start: Path) -> str:
+    try:
+        return str(path.relative_to(start))
+    except ValueError:
+        return str(path)
+
+
+def copy_text_artifact(source_path: Path, target_path: Path) -> bool:
+    if not source_path.exists():
+        return False
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    target_path.write_text(source_path.read_text(encoding="utf-8", errors="replace"), encoding="utf-8")
+    return True
+
+
+def copy_json_artifact(source_path: Path, target_path: Path) -> bool:
+    if not source_path.exists():
+        return False
+    write_json(target_path, read_json_file(source_path))
+    return True
 
 
 def primary_request_profile() -> tuple[str, str]:
@@ -71,6 +131,53 @@ def fetch_html(url: str, timeout: int) -> tuple[int, dict[str, str], str, dict[s
             "headers": headers,
         }
         return response.status_code, dict(response.headers), response.text, request_meta
+
+
+def is_infrastructure_error_text(error_text: str | None) -> bool:
+    normalized = (error_text or "").lower()
+    return any(marker in normalized for marker in INFRASTRUCTURE_ERROR_MARKERS)
+
+
+def is_infrastructure_job_report(job_report: dict[str, Any]) -> bool:
+    return (
+        job_report.get("status") == "parser_error"
+        and job_report.get("http_status") is None
+        and is_infrastructure_error_text(str(job_report.get("error") or ""))
+    )
+
+
+def is_infrastructure_run_report(run_report: dict[str, Any]) -> bool:
+    job_reports = run_report.get("job_reports")
+    return isinstance(job_reports, list) and bool(job_reports) and all(
+        is_infrastructure_job_report(job_report)
+        for job_report in job_reports
+        if isinstance(job_report, dict)
+    )
+
+
+def probe_search_hosts(config: dict[str, Any]) -> dict[str, Any]:
+    hosts = sorted(
+        {
+            parsed.netloc
+            for job in config.get("jobs", [])
+            if isinstance(job, dict)
+            and isinstance(job.get("search_url"), str)
+            and job.get("search_url")
+            and (parsed := urlparse(job["search_url"])).netloc
+        }
+    )
+    failures = []
+    for host in hosts:
+        try:
+            socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
+        except OSError as exc:
+            failures.append({"host": host, "error": f"{type(exc).__name__}: {exc}"})
+
+    return {
+        "status": "ready" if not failures else "dns_unready",
+        "checked_hosts": hosts,
+        "failures": failures,
+    }
 
 
 def is_blocked(status_code: int, text: str) -> tuple[bool, str | None]:
@@ -99,9 +206,15 @@ def extract_state_data(html_text: str) -> dict[str, Any]:
             payload = json.loads(html.unescape(script.get_text()))
         except json.JSONDecodeError:
             continue
-        data = payload.get("state", {}).get("data", {})
-        if data.get("catalog") or data.get("searchCore"):
-            return data
+        candidates = [
+            payload.get("state", {}).get("data", {}),
+            payload.get("loaderData", {}).get("data", {}),
+            payload.get("data", {}),
+            payload,
+        ]
+        for data in candidates:
+            if isinstance(data, dict) and (data.get("catalog") or data.get("searchCore")):
+                return data
     return {}
 
 
@@ -109,6 +222,27 @@ def extract_items(state_data: dict[str, Any]) -> list[dict[str, Any]]:
     catalog = state_data.get("catalog") or {}
     items = catalog.get("items") or []
     return [item for item in items if isinstance(item, dict) and item.get("id")]
+
+
+def nested_payload_value(item: dict[str, Any], step_name: str, payload_key: str) -> Any:
+    containers = [item]
+    iva = item.get("iva")
+    if isinstance(iva, dict):
+        containers.append(iva)
+    for container in containers:
+        steps = container.get(step_name)
+        if not isinstance(steps, list):
+            continue
+        for step in steps:
+            if not isinstance(step, dict):
+                continue
+            payload = step.get("payload")
+            if not isinstance(payload, dict):
+                continue
+            value = payload.get(payload_key)
+            if value is not None:
+                return value
+    return None
 
 
 def detect_page_problem(html_text: str, state_data: dict[str, Any]) -> tuple[bool, str | None]:
@@ -135,6 +269,9 @@ def normalize_listing(item: dict[str, Any], job: dict[str, Any], fetched_at: str
     price = price_value(item)
     title = item.get("title")
     url_path = item.get("urlPath")
+    description = item.get("description")
+    if description is None:
+        description = nested_payload_value(item, "DescriptionStep", "description")
     if not title or price is None or not url_path:
         return None
 
@@ -149,7 +286,7 @@ def normalize_listing(item: dict[str, Any], job: dict[str, Any], fetched_at: str
         "job_code": job["code"],
         "external_id": str(item.get("id")),
         "title": title,
-        "description": item.get("description"),
+        "description": description,
         "price": price,
         "currency": "RUB",
         "url": "https://www.avito.ru/" + str(url_path).lstrip("/"),
@@ -158,6 +295,17 @@ def normalize_listing(item: dict[str, Any], job: dict[str, Any], fetched_at: str
         "fetched_at": fetched_at,
         "raw_payload": item,
     }
+
+
+def is_multi_unit_offer(text: str) -> bool:
+    normalized = text.lower()
+    if any(pattern.search(normalized) for pattern in MULTI_UNIT_SINGLE_PRICE_EXCEPTIONS):
+        return False
+    if any(pattern.search(normalized) for pattern in MULTI_UNIT_PATTERNS):
+        return True
+    if any(hint in normalized for hint in MULTI_UNIT_HINTS) and "шт" in normalized:
+        return True
+    return False
 
 
 def classify_listing(listing: dict[str, Any], job: dict[str, Any]) -> tuple[str, list[str]]:
@@ -217,6 +365,9 @@ def classify_listing(listing: dict[str, Any], job: dict[str, Any]) -> tuple[str,
         if term in text:
             unknown_reasons.append(f"repair_or_incomplete:{term}")
 
+    if is_multi_unit_offer(text):
+        unknown_reasons.append("multi_unit_offer")
+
     price = listing["price"]
     if price < job.get("price_min", 0):
         unknown_reasons.append("price_below_min")
@@ -230,6 +381,13 @@ def classify_listing(listing: dict[str, Any], job: dict[str, Any]) -> tuple[str,
     return "relevant", []
 
 
+def upper_median(values: list[int | float]) -> int | float | None:
+    if not values:
+        return None
+    ordered = sorted(values)
+    return ordered[len(ordered) // 2]
+
+
 def calculate_snapshot(
     job: dict[str, Any],
     raw_count: int,
@@ -239,7 +397,12 @@ def calculate_snapshot(
     source: str = "avito",
 ) -> dict[str, Any]:
     prices = [item["price"] for item in relevant]
-    status = "success" if prices else "no_data"
+    if not prices:
+        status = "no_data"
+    elif len(relevant) < MIN_RELEVANT_FOR_SUCCESS:
+        status = "low_sample"
+    else:
+        status = "success"
     return {
         "job_code": job["code"],
         "position_name": job["position_name"],
@@ -253,10 +416,89 @@ def calculate_snapshot(
         "unknown_count": len([item for item in normalized if item.get("relevance_status") == "unknown"]),
         "min_price": min(prices) if prices else None,
         "max_price": max(prices) if prices else None,
-        "median_price": statistics.median(prices) if prices else None,
+        "median_price": upper_median(prices),
         "currency": "RUB",
         "fetched_at": fetched_at,
     }
+
+
+def write_evidence_bundle(
+    job: dict[str, Any],
+    fetched_at: str,
+    job_dir: Path,
+    source: str,
+    snapshot: dict[str, Any],
+    relevant: list[dict[str, Any]],
+) -> None:
+    run_dir = job_dir.parent
+    evidence_dir = run_dir / "evidence" / job["code"]
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+
+    artifacts: list[dict[str, Any]] = []
+    artifact_specs = [
+        {
+            "kind": "search_html",
+            "source_path": job_dir / "raw_pages" / "page_1.html",
+            "target_path": evidence_dir / "search_result.html",
+            "copy": copy_text_artifact,
+        },
+        {
+            "kind": "search_json",
+            "source_path": job_dir / "state_data.json",
+            "target_path": evidence_dir / "search_result.json",
+            "copy": copy_json_artifact,
+        },
+    ]
+    if source == "avito_duff89":
+        artifact_specs.append(
+            {
+                "kind": "search_json",
+                "source_path": job_dir / "duff89_normalized_listings.json",
+                "target_path": evidence_dir / "search_result.json",
+                "copy": copy_json_artifact,
+            }
+        )
+    if source == "youla":
+        artifact_specs.append(
+            {
+                "kind": "search_json",
+                "source_path": job_dir / "youla_raw_response.json",
+                "target_path": evidence_dir / "search_result.json",
+                "copy": copy_json_artifact,
+            }
+        )
+
+    seen_targets: set[Path] = set()
+    for spec in artifact_specs:
+        target_path = spec["target_path"]
+        if target_path in seen_targets:
+            continue
+        copied = spec["copy"](spec["source_path"], target_path)
+        if not copied:
+            continue
+        seen_targets.add(target_path)
+        artifacts.append(
+            {
+                "kind": spec["kind"],
+                "format": target_path.suffix.lstrip("."),
+                "path": relative_path(target_path, run_dir),
+                "source_path": relative_path(spec["source_path"], run_dir),
+            }
+        )
+
+    manifest = {
+        "run_id": run_dir.name,
+        "job_code": job["code"],
+        "position_name": job.get("position_name"),
+        "source": source,
+        "search_url": job.get("search_url"),
+        "snapshot_date": snapshot.get("snapshot_date"),
+        "fetched_at": fetched_at,
+        "status": snapshot.get("status"),
+        "relevant_count": len(relevant),
+        "artifacts": artifacts,
+    }
+    write_json(evidence_dir / "manifest.json", manifest)
 
 
 def persist_classified_snapshot(
@@ -295,6 +537,7 @@ def persist_classified_snapshot(
     write_json(job_dir / "unknown_listings.json", unknown)
     write_json(job_dir / "rejected_listings.json", rejected)
     write_json(job_dir / "daily_snapshot.json", snapshot)
+    write_evidence_bundle(job, fetched_at, job_dir, source, snapshot, relevant)
 
     report = {
         "job_code": job["code"],
@@ -565,6 +808,10 @@ def apply_fallback_chain(
 ) -> dict[str, Any]:
     if primary_report.get("status") == "success":
         return primary_report
+    # Keep a low-sample Avito result as the primary truth instead of replacing it
+    # with a weaker marketplace fallback.
+    if primary_report.get("status") == "low_sample":
+        return primary_report
     duff89_report = try_duff89_fallback(job, fetched_at, job_dir, block_diagnostic, primary_report)
     if duff89_report and duff89_report.get("status") == "success":
         return duff89_report
@@ -610,6 +857,7 @@ def process_html(
         return report
 
     state_data = extract_state_data(html_text)
+    write_json(job_dir / "state_data.json", state_data)
     has_page_problem, page_problem = detect_page_problem(html_text, state_data)
     if has_page_problem:
         report = {
@@ -676,6 +924,8 @@ def live_run_exists_for_date(runs_dir: Path, run_date: str) -> tuple[bool, dict[
         if run_id.endswith("_offline"):
             continue
         run_report = load_json(run_report_path, {})
+        if is_infrastructure_run_report(run_report):
+            continue
         started_at = run_report.get("started_at")
         if isinstance(started_at, str) and started_at[:10] == run_date:
             return True, {
@@ -705,10 +955,21 @@ def main() -> int:
     parser.add_argument("--allow-same-day-live", action="store_true")
     args = parser.parse_args()
 
+    config = json.loads(Path(args.config).read_text(encoding="utf-8"))
+    runtime_probe = probe_search_hosts(config)
+    if runtime_probe["status"] != "ready":
+        payload = {
+            "status": "infrastructure_unready",
+            "reason": "dns_resolution_failed",
+            "message": "Search host DNS resolution failed before live run start",
+            "runtime": runtime_probe,
+        }
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 4
+
     started_at = utc_now()
     run_id = started_at.strftime("%Y%m%dT%H%M%SZ")
     run_dir = Path(args.runs_dir) / run_id
-    config = json.loads(Path(args.config).read_text(encoding="utf-8"))
     if not args.allow_same_day_live:
         run_exists, existing_run = live_run_exists_for_date(Path(args.runs_dir), started_at.date().isoformat())
         if run_exists and existing_run is not None:
@@ -848,6 +1109,11 @@ def print_config_validation(config_path: Path) -> int:
 def build_preflight(config_path: Path, runs_dir: Path) -> tuple[int, dict[str, Any]]:
     config = read_config(config_path)
     config_is_valid, config_errors, config_summary = validate_config(config)
+    runtime_probe = probe_search_hosts(config) if config_is_valid else {
+        "status": "skipped",
+        "checked_hosts": [],
+        "failures": [],
+    }
     today = utc_now().date().isoformat()
     live_exists, existing_run = live_run_exists_for_date(runs_dir, today)
     status = "ready"
@@ -855,6 +1121,9 @@ def build_preflight(config_path: Path, runs_dir: Path) -> tuple[int, dict[str, A
     if not config_is_valid:
         status = "invalid_config"
         exit_code = 2
+    elif runtime_probe["status"] != "ready":
+        status = "infrastructure_unready"
+        exit_code = 4
     elif live_exists:
         status = "blocked_by_same_day_guard"
         exit_code = 3
@@ -867,6 +1136,7 @@ def build_preflight(config_path: Path, runs_dir: Path) -> tuple[int, dict[str, A
             "errors": config_errors,
             "summary": config_summary,
         },
+        "runtime": runtime_probe,
         "same_day_guard": {
             "live_run_exists": live_exists,
             "existing_run": existing_run,
@@ -918,7 +1188,9 @@ def diagnose_raw_html(job_dir: Path) -> list[str]:
 def analyze_run(run_dir: Path) -> dict[str, Any]:
     run_report = load_json(run_dir / "run_report.json", {})
     jobs = []
-    for job_dir in sorted(path for path in run_dir.iterdir() if path.is_dir()):
+    for job_dir in sorted(
+        path for path in run_dir.iterdir() if path.is_dir() and (path / "job_report.json").exists()
+    ):
         job_report = load_json(job_dir / "job_report.json", {})
         snapshot = load_json(job_dir / "daily_snapshot.json", {})
         rejected = load_json(job_dir / "rejected_listings.json", [])
@@ -1223,20 +1495,13 @@ def is_infrastructure_attempt(analysis: dict[str, Any]) -> bool:
     jobs = analysis.get("jobs") or []
     if not jobs:
         return False
-    network_error_markers = [
-        "could not resolve host",
-        "failed to connect",
-        "connection timed out",
-        "network is unreachable",
-        "temporary failure in name resolution",
-    ]
     for job in jobs:
         if job.get("status") != "parser_error":
             return False
         if job.get("http_status") is not None:
             return False
         error = str(job.get("error") or "").lower()
-        if not any(marker in error for marker in network_error_markers):
+        if not is_infrastructure_error_text(error):
             return False
     return True
 
