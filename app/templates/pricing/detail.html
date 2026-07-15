@@ -22,105 +22,49 @@
         <div>
           <div class="breadcrumbs"><a href="/">Главная</a> / <a href="/pricing">оценщик</a> / {{ chart.item_code }}</div>
           <h1>{{ chart.item_name }}</h1>
-          <p>Страница позиции показывает историю ценовых снимков, график диапазона и журнал запусков по конкретному оборудованию.</p>
         </div>
       </div>
 
-      <div class="pricing-detail-layout">
-        <section class="pricing-detail-main">
-          <div class="pricing-legend">
-            <span><i class="legend-line median"></i>Медиана</span>
-            <span><i class="legend-line min"></i>Минимум</span>
-            <span><i class="legend-line max"></i>Максимум</span>
-          </div>
-
-          <article class="pricing-chart-block pricing-chart-block-detail">
-            <div class="pricing-chart-head">
-              <div>
-                <h2>История оценок</h2>
-                <span>{{ chart.item_code }}</span>
-              </div>
-              <div class="pricing-scale">
-                <strong>{{ chart.y_max_label }}</strong>
-                <span>{{ chart.y_min_label }}</span>
-              </div>
-            </div>
-
-            <div class="pricing-source-state">
-              <div>
-                <span>Последняя успешная оценка</span>
-                <strong>{{ format_price(chart.latest_success_median) }}</strong>
-                <em>{{ chart.latest_success_date_label or "нет успешных данных" }}{% if chart.latest_success_source_code %} / {{ chart.latest_success_source_code }}{% endif %}</em>
-              </div>
-              <div>
-                <span>Источник сейчас</span>
-                <strong class="pricing-state-{{ chart.latest_status }}">{{ status_labels[chart.latest_status] }}</strong>
-                <em>{{ chart.latest_source_code }} / {{ chart.latest_date_label }} / {{ chart.latest_run_id }}</em>
-              </div>
-            </div>
-
-            <svg class="pricing-chart" viewBox="0 0 760 280" role="img" aria-label="График {{ chart.item_name }}">
-              <line x1="56" y1="56" x2="704" y2="56" class="chart-grid-line"></line>
-              <line x1="56" y1="144" x2="704" y2="144" class="chart-grid-line"></line>
-              <line x1="56" y1="232" x2="704" y2="232" class="chart-axis"></line>
-              <line x1="56" y1="56" x2="56" y2="232" class="chart-axis"></line>
-
-              {% if chart.max_polyline %}
-                <polyline points="{{ chart.max_polyline }}" class="chart-line max"></polyline>
-              {% endif %}
-              {% if chart.min_polyline %}
-                <polyline points="{{ chart.min_polyline }}" class="chart-line min"></polyline>
-              {% endif %}
-              {% if chart.median_polyline %}
-                <polyline points="{{ chart.median_polyline }}" class="chart-line median"></polyline>
-              {% endif %}
-
-              {% for point in chart.points %}
-                <line x1="{{ point.x }}" y1="232" x2="{{ point.x }}" y2="238" class="chart-tick"></line>
-                <text x="{{ point.x }}" y="258" text-anchor="middle" class="chart-label">{{ point.date_label[5:] }}</text>
-                {% if point.y_median is not none %}
-                  <circle cx="{{ point.x }}" cy="{{ point.y_median }}" r="5" class="chart-dot median"></circle>
-                  <title>{{ point.date_label }} median {{ format_price(point.median_price) }}</title>
-                {% endif %}
-              {% endfor %}
-            </svg>
-
-            <div class="pricing-point-list">
-              {% for point in chart.points %}
-                <div>
-                  <span>{{ point.date_label }}</span>
-                  <strong>{{ point.source_code }}</strong>
-                  <em>{{ format_price(point.median_price) }}</em>
-                </div>
-              {% else %}
-                <div>
-                  <span>Нет успешных оценок</span>
-                  <strong>{{ status_labels[chart.latest_status] }}</strong>
-                  <em>-</em>
-                </div>
-              {% endfor %}
-            </div>
-          </article>
-        </section>
-
-        <aside class="pricing-detail-side">
-          <article class="pricing-side-card">
-            <span>Последний run</span>
-            <strong><code>{{ chart.latest_run_id }}</code></strong>
-            <em>{{ chart.latest_date_label }} / {{ chart.latest_source_code }}</em>
-          </article>
-          <article class="pricing-side-card">
-            <span>Последний успешный медианный ориентир</span>
-            <strong>{{ format_price(chart.latest_success_median) }}</strong>
-            <em>{{ chart.latest_success_date_label or "нет данных" }}</em>
-          </article>
-          <article class="pricing-side-card">
-            <span>Точек на графике</span>
-            <strong>{{ chart.points|length }}</strong>
-            <em>Успешные снимки с ценовыми значениями</em>
-          </article>
-        </aside>
+      <div class="pricing-legend">
+        <span><i class="legend-line median"></i>Медиана</span>
+        <span><i class="legend-line min"></i>Минимум</span>
+        <span><i class="legend-line max"></i>Максимум</span>
       </div>
+
+      <article class="pricing-chart-block pricing-chart-block-detail">
+        <div class="pricing-chart-head">
+          <div>
+            <h2>История оценок</h2>
+            <span>{{ chart.item_code }}</span>
+          </div>
+        </div>
+
+        <svg class="pricing-chart" viewBox="0 0 760 280" role="img" aria-label="График {{ chart.item_name }}">
+          <line x1="56" y1="56" x2="704" y2="56" class="chart-grid-line"></line>
+          <line x1="56" y1="144" x2="704" y2="144" class="chart-grid-line"></line>
+          <line x1="56" y1="232" x2="704" y2="232" class="chart-axis"></line>
+          <line x1="56" y1="56" x2="56" y2="232" class="chart-axis"></line>
+
+          {% if chart.max_polyline %}
+            <polyline points="{{ chart.max_polyline }}" class="chart-line max"></polyline>
+          {% endif %}
+          {% if chart.min_polyline %}
+            <polyline points="{{ chart.min_polyline }}" class="chart-line min"></polyline>
+          {% endif %}
+          {% if chart.median_polyline %}
+            <polyline points="{{ chart.median_polyline }}" class="chart-line median"></polyline>
+          {% endif %}
+
+          {% for point in chart.points %}
+            <line x1="{{ point.x }}" y1="232" x2="{{ point.x }}" y2="238" class="chart-tick"></line>
+            <text x="{{ point.x }}" y="258" text-anchor="middle" class="chart-label">{{ point.date_label[5:] }}</text>
+            {% if point.y_median is not none %}
+              <circle cx="{{ point.x }}" cy="{{ point.y_median }}" r="5" class="chart-dot median"></circle>
+              <title>{{ point.date_label }} median {{ format_price(point.median_price) }}</title>
+            {% endif %}
+          {% endfor %}
+        </svg>
+      </article>
 
       <div class="table-wrap">
         <div class="table-caption">Журнал запусков по позиции</div>
@@ -137,6 +81,7 @@
               <th>Min</th>
               <th>Median</th>
               <th>Max</th>
+              <th>Артефакты</th>
             </tr>
           </thead>
           <tbody>
@@ -156,10 +101,23 @@
                 <td>{{ format_price(snapshot.min_price) }}</td>
                 <td>{{ format_price(snapshot.median_price) }}</td>
                 <td>{{ format_price(snapshot.max_price) }}</td>
+                <td>
+                  {% set evidence_map = evidence_by_run_id | default({}, true) %}
+                  {% set evidence = evidence_map.get(snapshot.scrape_run.external_run_id) %}
+                  {% if evidence %}
+                    <div class="pricing-evidence-links">
+                      {% for artifact in evidence.artifacts %}
+                        <a class="pricing-evidence-link" href="{{ artifact.url }}" target="_blank" rel="noopener">{{ artifact.label }}</a>
+                      {% endfor %}
+                    </div>
+                  {% else %}
+                    <span class="muted">нет</span>
+                  {% endif %}
+                </td>
               </tr>
             {% else %}
               <tr>
-                <td colspan="10" class="empty">Нет сохранённых snapshots.</td>
+                <td colspan="11" class="empty">Нет сохранённых snapshots.</td>
               </tr>
             {% endfor %}
           </tbody>

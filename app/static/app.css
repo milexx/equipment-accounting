@@ -599,6 +599,11 @@ tbody tr:hover td {
   color: var(--success);
 }
 
+.pricing-status-low_sample {
+  background: var(--warning-soft);
+  color: #8d5a12;
+}
+
 .pricing-status-blocked,
 .pricing-status-captcha,
 .pricing-status-parser_error {
@@ -1088,6 +1093,10 @@ tbody tr:hover td {
   color: var(--success);
 }
 
+.pricing-state-low_sample {
+  color: #8d5a12;
+}
+
 .pricing-state-blocked,
 .pricing-state-captcha,
 .pricing-state-parser_error {
@@ -1140,41 +1149,6 @@ tbody tr:hover td {
   font-size: 0.72rem;
 }
 
-.pricing-point-list {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  border-top: 1px solid var(--line);
-}
-
-.pricing-point-list div {
-  display: grid;
-  gap: 3px;
-  padding: 10px 14px;
-  border-right: 1px solid var(--line);
-}
-
-.pricing-point-list div:last-child {
-  border-right: 0;
-}
-
-.pricing-point-list span,
-.pricing-point-list strong,
-.pricing-point-list em {
-  display: block;
-  font-size: 0.72rem;
-  font-style: normal;
-}
-
-.pricing-point-list span {
-  color: var(--text-muted);
-}
-
-.pricing-point-list em {
-  color: var(--text);
-  font-size: 0.95rem;
-  font-weight: 700;
-}
-
 .pricing-aggregate,
 .pricing-history-meta {
   display: grid;
@@ -1210,6 +1184,28 @@ tbody tr:hover td {
   display: grid;
   align-content: start;
   gap: 16px;
+}
+
+.pricing-evidence-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pricing-evidence-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #f7fafc;
+  color: var(--text);
+  font-size: 0.74rem;
+  text-decoration: none;
+}
+
+.pricing-evidence-link:hover {
+  background: #eef4fa;
 }
 
 .documentation-panel {
@@ -1595,7 +1591,6 @@ code,
   }
 
   .pricing-source-state,
-  .pricing-point-list,
   .kv-grid,
   .admin-overview,
   .admin-layout,
