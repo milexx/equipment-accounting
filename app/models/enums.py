@@ -79,6 +79,7 @@ class PriceRunStatus(str, enum.Enum):
 
 class PriceJobStatus(str, enum.Enum):
     success = "success"
+    low_sample = "low_sample"
     no_data = "no_data"
     blocked = "blocked"
     captcha = "captcha"

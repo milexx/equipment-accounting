@@ -128,6 +128,26 @@ class PricingServiceTest(unittest.TestCase):
         observations = self.db.scalars(select(PriceObservation)).all()
         self.assertEqual({observation.source_id for observation in observations}, {youla.id})
 
+    def test_import_low_sample_keeps_observations_without_parser_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = _write_sample_run(Path(tmp), run_id="low1", source="youla", snapshot_status="low_sample")
+
+            result = self.service.import_poc_run(run_dir)
+
+        self.assertEqual(result.observations_created, 2)
+        self.assertEqual(result.snapshots_saved, 2)
+        self.assertEqual(result.parser_errors_created, 1)
+        snapshot = self.db.scalar(
+            select(DailyPriceSnapshot).join(MonitoredItem).where(MonitoredItem.code == "lenovo_t14")
+        )
+        self.assertIsNotNone(snapshot)
+        self.assertEqual(snapshot.status, PriceJobStatus.low_sample)
+        observations = self.db.scalars(select(PriceObservation)).all()
+        self.assertEqual(len(observations), 2)
+        parser_errors = self.db.scalars(select(ParserError)).all()
+        self.assertEqual(len(parser_errors), 1)
+        self.assertEqual(parser_errors[0].job_code, "dell_r740")
+
     def test_calculate_snapshot_uses_observation_prices(self) -> None:
         source = self.service.get_or_create_source(code="avito", name="Avito")
         category = self.service.get_or_create_category(code="used_equipment", name="Б/у оборудование")
@@ -181,6 +201,42 @@ class PricingServiceTest(unittest.TestCase):
         self.assertEqual(snapshot["max_price"], Decimal("90000"))
         self.assertEqual(snapshot["median_price"], Decimal("20000"))
 
+    def test_calculate_snapshot_uses_upper_median_for_even_sample(self) -> None:
+        source = self.service.get_or_create_source(code="avito", name="Avito")
+        category = self.service.get_or_create_category(code="used_equipment", name="Б/у оборудование")
+        item = self.service.get_or_create_monitored_item(
+            category=category,
+            code="hp_m426",
+            name="HP LaserJet Pro MFP M426",
+        )
+        run = self.service.create_or_update_run(
+            source=source,
+            external_run_id="manual2",
+            status=PriceRunStatus.success,
+            started_at=None,
+            finished_at=None,
+            jobs_total=1,
+            jobs_success=1,
+            jobs_blocked=0,
+            jobs_failed=0,
+            raw_report={},
+        )
+        observations = [
+            self.service.add_observation(run=run, item=item, source=source, listing=_listing("h1", 19900)),
+            self.service.add_observation(run=run, item=item, source=source, listing=_listing("h2", 20000)),
+            self.service.add_observation(run=run, item=item, source=source, listing=_listing("h3", 22000)),
+            self.service.add_observation(run=run, item=item, source=source, listing=_listing("h4", 30000)),
+        ]
+
+        snapshot = self.service.calculate_snapshot(
+            item=item,
+            source=source,
+            snapshot_date=date(2026, 6, 20),
+            observations=observations,
+        )
+
+        self.assertEqual(snapshot["median_price"], Decimal("22000"))
+
 
 def _write_sample_run(
     root: Path,
@@ -188,6 +244,7 @@ def _write_sample_run(
     run_id: str = "run1",
     lenovo_median: int = 30000,
     source: str = "avito",
+    snapshot_status: str = "success",
 ) -> Path:
     run_dir = root / run_id
     lenovo_dir = run_dir / "lenovo_t14"
@@ -210,7 +267,7 @@ def _write_sample_run(
                 {
                     "job_code": "lenovo_t14",
                     "source": source,
-                    "status": "success",
+                    "status": snapshot_status,
                     "http_status": 200,
                     "items_found": 2,
                     "items_normalized": 2,
@@ -238,7 +295,7 @@ def _write_sample_run(
             "position_name": "Lenovo ThinkPad T14",
             "snapshot_date": "2026-06-20",
             "source": source,
-            "status": "success",
+            "status": snapshot_status,
             "raw_count": 2,
             "normalized_count": 2,
             "relevant_count": 2,

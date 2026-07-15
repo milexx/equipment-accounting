@@ -1,5 +1,4 @@
 import json
-import statistics
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
@@ -241,7 +240,7 @@ class PricingService:
             "rejected_count": 0,
             "min_price": min(prices) if prices else None,
             "max_price": max(prices) if prices else None,
-            "median_price": Decimal(str(statistics.median(prices))) if prices else None,
+            "median_price": _upper_median_decimal(prices),
             "currency": observations[0].currency if observations else "RUB",
         }
 
@@ -278,7 +277,7 @@ class PricingService:
                 snapshot.get("source") or job_report.get("source") or "avito"
             )
 
-            if status == PriceJobStatus.success:
+            if status in {PriceJobStatus.success, PriceJobStatus.low_sample}:
                 listings = _read_json(job_dir / "relevant_listings.json", default=[])
                 for listing in listings:
                     listing_source = self.get_or_create_source_by_code(
@@ -301,7 +300,7 @@ class PricingService:
                 )
                 snapshots_saved += 1
 
-            if status not in {PriceJobStatus.success, PriceJobStatus.no_data}:
+            if status not in {PriceJobStatus.success, PriceJobStatus.low_sample, PriceJobStatus.no_data}:
                 error_source = self.get_or_create_source_by_code(job_report.get("source") or "avito")
                 self.save_parser_error(
                     run=run,
@@ -354,6 +353,13 @@ def _decimal_or_none(value: Any) -> Decimal | None:
     if value is None:
         return None
     return Decimal(str(value))
+
+
+def _upper_median_decimal(values: list[Decimal]) -> Decimal | None:
+    if not values:
+        return None
+    ordered = sorted(values)
+    return ordered[len(ordered) // 2]
 
 
 def _snapshot_from_job_report(job_report: dict[str, Any]) -> dict[str, Any]:
